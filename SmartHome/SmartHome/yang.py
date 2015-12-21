@@ -8,3 +8,5 @@ Created on 2015年12月21日
 
 def test():
     print "TRY SAME！"
+def zhang():
+    pass
