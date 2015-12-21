@@ -5,7 +5,7 @@ Created on 2015年12月15日
 
 @author: sanhe
 '''
-from datetime import datetime
+import time
 import math
 __metaclass__ = type
 class data_conf():
@@ -99,9 +99,9 @@ class data_param():
                 self.__data.value = value
                 if value < self.__constraint.min_val or value > self.__constraint.max_val:
                     self.__data.error_flag = True
-                self.__data.time = datetime.now()
+                self.__data.time = time.time()
                 self.__data.dis_flag = False
-                self.__data.dis_time = datetime.now()
+                self.__data.dis_time = time.time()
                 flag = True
             else:
                 if (math.fabs(self.__data.value - value) - self.__constraint.min_variation) > 0:
@@ -113,7 +113,7 @@ class data_param():
                     flag = True
                 if self.__data.dis_flag is True:
                     self.__data.dis_flag = False
-                    self.__data.dis_time = datetime.now()
+                    self.__data.dis_time = time.time()
                     flag = True
         else:
             if value is not None:
@@ -121,19 +121,19 @@ class data_param():
                     self.__total = self.__total + value
                     self.__count = self.__count + 1
                     if self.__start_time is None:
-                        self.__start_time = datetime.now()
-                    if (datetime.now() - self.__start_time).total_seconds() >= self.__minute * 60:
+                        self.__start_time = time.time()
+                    if time.time() - self.__start_time >= self.__minute * 60:
                         ave_value = self.__total / self.__count
                         self.__start_time = None
                         if self.__data.value is None:
                             self.__data.value = ave_value
-                            self.__data.time = datetime.now()
+                            self.__data.time = time.time()
                         elif (math.fabs(self.__data.value - ave_value) - self.__constraint.min_variation) > 0:
                             self.__data.value = ave_value
-                            self.__data.time = datetime.now()
+                            self.__data.time = time.time()
                             if self.__data.dis_flag is True:
                                 self.__data.dis_flag = False
-                                self.__data.dis_time = datetime.now()
+                                self.__data.dis_time = time.time()
                             flag = True
         self.__ischanged = flag    
                             
@@ -141,7 +141,7 @@ class data_param():
         if self.__data.error_flag is False and self.__data.dis_flag is False:
             return self.__data.value
         elif self.__data.error_flag is False and self.__data.dis_flag is True:
-            if (datetime.now() - self.__data.dis_time).total_seconds > self.__constraint.interval * 60:
+            if time.time() - self.__data.dis_time > self.__constraint.interval * 60:
                 return self.__data.value
             
     def getRealValue(self):
@@ -152,7 +152,7 @@ class data_param():
         if readvalue is not None:
             if readvalue != value:
                 self.write_value = value
-                self.write_time = datetime.now()
+                self.write_time = time.time()
                 self.write_Return = False
                 return self.write_value
             
@@ -161,4 +161,36 @@ class data_param():
         
     def getReason(self):
         return self.__reason
+    
+class ReasonData():
+    RS_DICT = {}
+    def __init__(self):
+        self.RS_Data = None
+        self.RS_id = None
+        self.padMac = None
+        
+    def setData(self,data):
+        self.RS_id = None
+        self.padMac = None
+        self.RS_Data = data
+        
+    def setID(self,rs_id):
+        self.padMac = None
+        self.RS_Data = None
+        self.RS_id = rs_id
+        
+    def setPad(self,mac):
+        self.RS_Data = None
+        self.RS_id = None
+        self.padMac = mac
+        
+    def getReasonValue(self):
+        if self.RS_Data is not None:
+            return self.RS_Data
+        elif self.RS_id is not None:
+            if self.RS_id in self.RS_DICT:
+                return self.RS_DICT[self.RS_id]
+        elif self.padMac is not None:
+            return self.padMac
+        
     
