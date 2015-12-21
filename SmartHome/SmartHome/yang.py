@@ -10,3 +10,5 @@ def test():
     print "TRY SAME！"
 def zhang():
     pass
+def zhang1():
+    pass
