@@ -13,3 +13,5 @@ def zhang():
 
 def yang():
     print "yang!"
+def zhang1():
+    pass
