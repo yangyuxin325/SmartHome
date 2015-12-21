@@ -48,5 +48,3 @@ if len(mdit) == 12:
     print port_map
 elif 0 < len(mdit) < 12:
     first = mdit[0]
-
->>>>>>> refs/remotes/origin/yang
