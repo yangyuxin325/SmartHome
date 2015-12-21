@@ -10,3 +10,6 @@ def test():
     print "TRY SAME！"
 def zhang():
     pass
+
+def yang():
+    print "yang!"
