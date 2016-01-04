@@ -5,6 +5,7 @@ Created on 2015年12月21日
 
 @author: sanhe
 '''
+import torndb
 from SmartHome import mydevice
 
 class DB_conf():
@@ -14,6 +15,11 @@ class DB_conf():
         self.user = user
         self.password = password
 
+def HexToString(array):
+    snd = ''
+    for i in array:
+        snd += '%02x' % i
+    return snd
 
 class deviceSet():
     device_dict = {
@@ -30,7 +36,71 @@ class deviceSet():
     def __init__(self, session_name, db = None):
         self.session_name = session_name
         self.dev_dict = {}
+        self.name_idMap = {}
+        self.id_nameMap = {}
+        self.db = db
         
     def getCmdSet(self):
-        pass
-        
+        cycleCmds = {}
+        for dev_id, dev in self.dev_dict.items():
+            cycleCmds[dev_id] = dev.genPratrolInstr(dev_id)
+        cmdCount = 0
+        line_cmdList = []
+        for key,cmds in cycleCmds.items():
+            for cmd in cmds :
+                cmdCount += 1
+                line_cmdList.append({"id" : cmdCount, "cmd" : HexToString(cmd), "dev_id" : key})
+        return line_cmdList
+     
+    def initData(self):
+        if self.db is not None:
+            sqlConnection = torndb.Connection(self.db.addr, self.db.name, user=self.db.user, password=self.db.password)
+            sqlString = 'select dev_name, dev_type, dev_id from Device where session_name = %s'
+            devices = sqlConnection.query(sqlString,self.session_name)
+            for device in devices:
+                self.dev_dict[device['dev_id']] = self.device_dict[device['dev_type']]()
+                self.name_idMap[device['dev_name']] = device['dev_id']
+                self.id_nameMap[device['dev_id']] = device['dev_name']
+                sqlString = 'select data_ename, conf_name, link_flag, write_flag, algorithm from DataType where dev_name = %s'
+                data_confs = sqlConnection.query(sqlString, device['dev_name'])
+                for data_conf in data_confs:
+                    sqlString = 'select min_variation, min_val, max_val, dis_interval from DataConstraint where data_ename = %s'
+                    res = sqlConnection.query(sqlString, data_conf['data_ename'])
+                    from basedata import data_constraint
+                    dataconstraint = data_constraint(res[0]['min_variation'],res[0]['min_val'],res[0]['max_val'],res[0]['dis_interval'])
+                    sqlString = 'select value, error_flag, time, dis_flag, dis_time from DataInfo where data_ename = %s'
+                    res = sqlConnection.query(sqlString, data_conf['data_ename'])
+                    from basedata import basic_data
+                    data = basic_data(res[0]['value'],res[0]['error_flag'],res[0]['time'],res[0]['dis_flag'],res[0]['dis_time'])
+                    from basedata import data_param
+                    if data_conf['write_flag']:
+                        sqlString = 'select value, updatetime where data_ename = %s'
+                        res = sqlConnection.query(sqlString, data_conf['data_ename'])
+                        dataitem = data_param(data,dataconstraint,res[0]['value'],res[0]['updatetime'])
+                        self.dev_dict[device['dev_id']].addData(data_conf['conf_name'],dataitem)
+                    else:
+                        dataitem = data_param(data,dataconstraint)
+                        self.dev_dict[device['dev_id']].addData(data_conf['conf_name'],dataitem)
+                    if data_conf['link_flag']:
+                        sqlString = 'select link_key, link_type, link_para1 from DataLink where dev_name = %s and conf_name = %s'
+                        link_data = sqlConnection.query(sqlString,device['dev_name'],data_conf['conf_name'])
+                        if link_data[0]['link_type'] == 'average':
+                            dataitem = data_param(data,dataconstraint,None,None,link_data[0]['link_para1'])
+                            self.dev_dict[device['dev_id']].addData(data_conf['conf_name'],dataitem,link_data[0]['link_key'])
+                    if data_conf['algorithm'] is not None:
+                        self.dev_dict[device['dev_id']].addAlgorithm(data_conf['conf_name'],data_conf['algorithm'])
+            sqlConnection.close()
+            
+    def setDisConnect(self, dev_id, flag):
+        if dev_id in self.dev_dict:
+            self.dev_dict[dev_id].setDisConnect(flag)
+    
+    def getConnectState(self, dev_id):
+        if dev_id in self.dev_dict:
+            return self.dev_dict[dev_id].getConnectState()
+    
+    def ParseData(self, dev_id, data):
+        if dev_id in self.dev_dict:
+            self.dev_dict[dev_id].dataParse(data)
+        else:
+            print "there is not device which it dev_id = " , dev_id , " in Session ", self._session_name

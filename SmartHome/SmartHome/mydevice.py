@@ -5,6 +5,8 @@ Created on 2015年12月16日
 
 @author: sanhe
 '''
+__metaclass__ = type
+
 device_Dict = {}
 device_Dict['infrared'] = '红外探测器'
 device_Dict['co2'] = 'co2探测器'
@@ -15,6 +17,7 @@ device_Dict['sansu'] = '三速风机'
 device_Dict['triplecng'] = '三联供机组'
 device_Dict['voc'] = 'voc探测器'
 device_Dict['wenkong'] = '温控器'
+device_Dict['ZMA194E'] = '三相电表'
 
 class crc16:  
     auchCRCHi = [ 0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0, 0x80, 0x41, 0x01, 0xC0, \
@@ -104,8 +107,8 @@ class device():
         self.data_dict = {}
         self.data_linkpara = {}
         self.linkset = set()
-        self.__disCount = None
-        self.__connectState = None
+        self.disCount = None
+        self.connectState = None
         
     def addData(self, conf_name, data, link_conf=None):
         if link_conf is None:
@@ -114,19 +117,19 @@ class device():
             if link_conf in self.data_dict:
                 self.linkset.add(link_conf)
                 self.data_dict[conf_name] = data
-                self.data_linkpara[conf_name,link_conf]
+                self.data_linkpara[conf_name] = link_conf
                 
     @classmethod
     def genPratrolInstr(self, ID):
         pass
     
     def dataParse(self, data):
-        if self.__disCount is None:
-            self.__disCount = self.data_dict['DisCount'].getRealValue()
-            if self.__disCount > 0:
-                self.__connectState = True
+        if self.disCount is None:
+            self.disCount = int(self.data_dict['DisCount'].getRealValue())
+            if self.disCount > 0:
+                self.connectState = True
             else:
-                self.__connectState = False
+                self.connectState = False
     
     def setDataValue(self, conf_name ,value):
         if conf_name in self.data_dict:
@@ -141,25 +144,25 @@ class device():
             return self.data_dict[conf_name].getRealValue()
                         
     def setDisConnect(self, flag):
-        if self.__disCount is None:
-            self.__disCount = self.data_dict['DisCount'].getRealValue()
-            if self.__disCount > 0:
-                self.__connectState = True
+        if self.disCount is None:
+            self.disCount = int(self.data_dict['DisCount'].getRealValue())
+            if self.disCount >= int(self.data_dict['DisCount'].getConstraint().min_variation):
+                self.connectState = False
             else:
-                self.__connectState = False
-        if flag is False and self.__disCount != 0:
-            self.__disCount = 0
-            self.setDataValue('DisCount',self.__disCount)
-            self.__connectState = True
+                self.connectState = True
+        if flag is False and self.disCount != 0:
+            self.disCount = 0
+            self.setDataValue('DisCount',self.disCount)
+            self.connectState = True
         elif flag is True:
-            self.__disCount = self.__disCount + 1
-            if self.data_dict['DisCount'].getRealValue() == 0:
-                self.setDataValue('DisCount',self.__disCount)
+            self.disCount = self.disCount + 1
+            if int(self.data_dict['DisCount'].getRealValue()) == 0:
+                self.setDataValue('DisCount',self.disCount)
                 if self.data_dict['DisCount'].getRealValue() > 0:
-                    self.__connectState = False
+                    self.connectState = False
                     
     def getConnectState(self):
-        return self.__connectState
+        return self.connectState
     
 class infrared(device):
     

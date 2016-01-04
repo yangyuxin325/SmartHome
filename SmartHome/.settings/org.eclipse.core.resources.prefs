@@ -1,7 +1,11 @@
 eclipse.preferences.version=1
+encoding//SmartHome/SmartServer.py=utf-8
 encoding//SmartHome/basedata.py=utf-8
+encoding//SmartHome/bjhgjh.py=utf-8
+encoding//SmartHome/data_server.py=utf-8
 encoding//SmartHome/data_session.py=utf-8
 encoding//SmartHome/deviceSet.py=utf-8
 encoding//SmartHome/mydevice.py=utf-8
+encoding//SmartHome/serialsearch.py=utf-8
 encoding//SmartHome/test.py=utf-8
 encoding//SmartHome/yang.py=utf-8
