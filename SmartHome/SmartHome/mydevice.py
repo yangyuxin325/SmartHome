@@ -109,6 +109,8 @@ class device():
         self.linkset = set()
         self.disCount = None
         self.connectState = None
+        self.disCount_timing = 0
+        self.otherdata_timing = 0
         
     def addData(self, conf_name, data, link_conf=None):
         if link_conf is None:
@@ -132,16 +134,34 @@ class device():
                 self.connectState = False
     
     def setDataValue(self, conf_name ,value):
+        if conf_name == 'DisCount':
+            self.disCount_timing = self.disCount_timing + 1
+        else:
+            self.otherdata_timing = self.otherdata_timing + 1
         if conf_name in self.data_dict:
             self.data_dict[conf_name].setValue(value)
             if conf_name in self.linkset:
                 for k,v in self.data_linkpara:
                     if v == conf_name:
                         self.data_dict[k].setValue(value)
+            else:
+                pass
+        else:
+            pass
                         
-    def getDataValue(self, conf_name):
+    def getData(self, conf_name):
+        discount_Data = self.data_dict[conf_name].getData()
         if conf_name in self.data_dict:
-            return self.data_dict[conf_name].getRealValue()
+            if conf_name == 'DisCount':
+                return discount_Data
+            else:
+                if self.disCount_timing > self.otherdata_timing:
+                    other_Data = self.data_dict[conf_name].getData()
+                    other_Data.dis_flag = discount_Data.dis_flag
+                    other_Data.dis_time = discount_Data.dis_time
+                    return other_Data
+                else:
+                    return self.data_dict[conf_name].getData()
                         
     def setDisConnect(self, flag):
         if self.disCount is None:
@@ -160,6 +180,10 @@ class device():
                 self.setDataValue('DisCount',self.disCount)
                 if self.data_dict['DisCount'].getRealValue() > 0:
                     self.connectState = False
+                else:
+                    pass
+            else:
+                pass
                     
     def getConnectState(self):
         return self.connectState
