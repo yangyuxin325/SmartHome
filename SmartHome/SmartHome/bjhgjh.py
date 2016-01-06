@@ -15,5 +15,3 @@ import serialsearch
 
 serialsearch.InitSerialNo(DB_conf("127.0.0.1:3306","smarthomeDB",'root','123456'))
 print serialsearch.Session_SerailMap
-def test():
-    pass
