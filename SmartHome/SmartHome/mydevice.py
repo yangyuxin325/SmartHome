@@ -135,9 +135,10 @@ class device():
     
     def setDataValue(self, conf_name ,value):
         if conf_name == 'DisCount':
-            self.disCount_timing = self.disCount_timing + 1
+            self.disCount_timing = self.otherdata_timing + 1
         else:
-            self.otherdata_timing = self.otherdata_timing + 1
+            if self.disCount_timing > self.otherdata_timing:
+                self.otherdata_timing = self.disCount_timing + 1
         if conf_name in self.data_dict:
             self.data_dict[conf_name].setValue(value)
             if conf_name in self.linkset:
