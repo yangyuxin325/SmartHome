@@ -55,4 +55,4 @@ def InitSerialNo(db):
         res = sqlConnection.query(sqlString)
         second = res[0]['value']
         for item in mdit:
-            Session_SerailMap[(item[0][second] - 1) * 4 + first] = item[1]
+            Session_SerailMap[(item[0][second] - 2) * 4 + first] = item[1]

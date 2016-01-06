@@ -76,11 +76,10 @@ class deviceSet():
                     if data_conf['write_flag']:
                         sqlString = 'select value, updatetime where data_ename = %s'
                         res = sqlConnection.query(sqlString, data_conf['data_ename'])
-                        dataitem = data_param(data,dataconstraint,res[0]['value'],res[0]['updatetime'])
-                        self.dev_dict[device['dev_id']].addData(data_conf['conf_name'],dataitem)
+                        self.dev_dict[device['dev_id']].addData(data_conf['conf_name'],
+                                data_param(data,dataconstraint,res[0]['value'],res[0]['updatetime']))
                     else:
-                        dataitem = data_param(data,dataconstraint)
-                        self.dev_dict[device['dev_id']].addData(data_conf['conf_name'],dataitem)
+                        self.dev_dict[device['dev_id']].addData(data_conf['conf_name'],data_param(data,dataconstraint))
                     if data_conf['link_flag']:
                         sqlString = 'select link_key, link_type, link_para1 from DataLink where dev_name = %s and conf_name = %s'
                         link_data = sqlConnection.query(sqlString,device['dev_name'],data_conf['conf_name'])
