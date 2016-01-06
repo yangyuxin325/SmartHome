@@ -353,7 +353,7 @@ class data_server():
         sqlConnection = torndb.Connection(db.addr, db.name, user=db.user, password=db.password)
         ress = sqlConnection.query("select data_ename,data_cname,data_type from DataType where data_type is not NULL")
         for res in ress:
-            self.dataConfs[res['data_ename']] = data_conf(res['data_ename'],res['data_cnmae'],self.server_name,res['data_type'])
+            self.dataConfs[res['data_ename']] = data_conf(res['data_ename'],res['data_cname'],self.server_name,res['data_type'])
         sqlConnection.query('select DataType.data_ename,DataType.data_cname,DataType.conf_name, \
         Device.dev_id, Device.session_name from DataType  inner join Device on \
         DataType.dev_name = Device.dev_name and DataType.server_name  = %s',self.server_name)
