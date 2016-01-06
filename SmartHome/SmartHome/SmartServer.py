@@ -223,7 +223,6 @@ class sessionSet():
             from data_session import data_session
             for session in sessions:
                 devSet = deviceSet(session['session_name'], db)
-                devSet.initData()
                 self.session_map[session['session_name']] = data_session(self.server_name,
                                                                          session['session_name'],
                                                                          session['session_id'],
