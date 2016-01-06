@@ -5,14 +5,15 @@ Created on 2015年12月15日
 
 @author: sanhe
 '''
-import time
+from datetime import datetime
 import math
 __metaclass__ = type
 class data_conf():
-    def __init__(self, ename, cname, owner, sess_name=None, dev_id=None, conf_name=None):
+    def __init__(self, ename, cname, server_name, data_type, sess_name=None, dev_id=None, conf_name=None):
         self.data_ename = ename
         self.data_cname = cname
-        self.data_owner = owner
+        self.server_name = server_name
+        self.data_type = data_type
         self.session_name = sess_name
         self.device_id = dev_id
         self.conf_name = conf_name
@@ -99,12 +100,12 @@ class data_param():
                 self.__data.value = value
                 if value < self.__constraint.min_val or value > self.__constraint.max_val:
                     self.__data.error_flag = True
-                self.__data.time = time.time()
+                self.__data.time = datetime.now()
                 self.__data.dis_flag = False
-                self.__data.dis_time = time.time()
+                self.__data.dis_time = datetime.now()
                 flag = True
             else:
-                if (math.fabs(self.__data.value - value) - self.__constraint.min_variation) > 0:
+                if math.fabs(self.__data.value - value) > self.__constraint.min_variation:
                     self.__data.value = value
                     if value < self.__constraint.min_val or value > self.__constraint.max_val:
                         self.__data.error_flag = True
@@ -113,7 +114,7 @@ class data_param():
                     flag = True
                 if self.__data.dis_flag is True:
                     self.__data.dis_flag = False
-                    self.__data.dis_time = time.time()
+                    self.__data.dis_time = datetime.now()
                     flag = True
         else:
             if value is not None:
@@ -121,19 +122,19 @@ class data_param():
                     self.__total = self.__total + value
                     self.__count = self.__count + 1
                     if self.__start_time is None:
-                        self.__start_time = time.time()
-                    if time.time() - self.__start_time >= self.__minute * 60:
+                        self.__start_time = datetime.now()
+                    if (datetime.now() - self.__start_time).total_seconds() >= self.__minute * 60:
                         ave_value = self.__total / self.__count
                         self.__start_time = None
                         if self.__data.value is None:
                             self.__data.value = ave_value
-                            self.__data.time = time.time()
+                            self.__data.time = datetime.now()
                         elif (math.fabs(self.__data.value - ave_value) - self.__constraint.min_variation) > 0:
                             self.__data.value = ave_value
-                            self.__data.time = time.time()
+                            self.__data.time = datetime.now()
                             if self.__data.dis_flag is True:
                                 self.__data.dis_flag = False
-                                self.__data.dis_time = time.time()
+                                self.__data.dis_time = datetime.now()
                             flag = True
         self.__ischanged = flag    
                             
@@ -141,7 +142,7 @@ class data_param():
         if self.__data.error_flag is False and self.__data.dis_flag is False:
             return self.__data.value
         elif self.__data.error_flag is False and self.__data.dis_flag is True:
-            if time.time() - self.__data.dis_time > self.__constraint.interval * 60:
+            if (datetime.now() - self.__data.dis_time).total_seconds() > self.__constraint.interval * 60:
                 return self.__data.value
             
     def getRealValue(self):
@@ -152,7 +153,7 @@ class data_param():
         if readvalue is not None:
             if readvalue != value:
                 self.write_value = value
-                self.write_time = time.time()
+                self.write_time = datetime.now()
                 self.write_Return = False
                 return self.write_value
             
