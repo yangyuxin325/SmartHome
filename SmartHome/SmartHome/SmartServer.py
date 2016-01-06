@@ -11,7 +11,6 @@ import threading
 import torndb
 import time
 import multiprocessing
-from tornado import ioloop
 
 class Server_Param():
     def __init__(self, server_name, server_ip, server_type):
