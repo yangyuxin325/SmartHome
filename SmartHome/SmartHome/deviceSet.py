@@ -90,6 +90,13 @@ class deviceSet():
                         self.dev_dict[device['dev_id']].addAlgorithm(data_conf['conf_name'],data_conf['algorithm'])
             sqlConnection.close()
             
+    def getData(self, dev_name, conf_name):
+        if dev_name in self.name_idMap:
+            self.device_dict[self.name_idMap[dev_name]].getData(conf_name)
+        
+    def setData(self, dev_name, conf_name, data):
+        self.device_dict[self.name_idMap[dev_name]].setData(conf_name, data)
+            
     def setDisConnect(self, dev_id, flag):
         if dev_id in self.dev_dict:
             self.dev_dict[dev_id].setDisConnect(flag)

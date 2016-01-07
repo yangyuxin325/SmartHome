@@ -176,6 +176,12 @@ class sessionSet():
         self.process_map = {}
         self.thread_map = {}
         
+    def getData(self, session_name, dev_name, conf_name):
+        if session_name in self.session_map:
+            return self.session_map[session_name].getData(dev_name, conf_name)
+        else:
+            pass
+        
     def startSession(self, session_name):
         try:
             if session_name in self.process_map :

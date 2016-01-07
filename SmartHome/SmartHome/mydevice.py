@@ -151,6 +151,8 @@ class device():
             pass
                         
     def getData(self, conf_name):
+        if conf_name not in self.data_dict:
+            return None
         discount_Data = self.data_dict[conf_name].getData()
         if conf_name in self.data_dict:
             if conf_name == 'DisCount':
@@ -163,6 +165,9 @@ class device():
                     return other_Data
                 else:
                     return self.data_dict[conf_name].getData()
+    
+    def setData(self, conf_name, data):
+        self.data_dict[conf_name] = data
                         
     def setDisConnect(self, flag):
         if self.disCount is None:

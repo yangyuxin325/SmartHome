@@ -41,6 +41,12 @@ class data_session():
         self.alive = False
         self.com = None
         
+    def getData(self, dev_name, conf_name):
+        return self.dev_set.getData(dev_name, conf_name)
+    
+    def setData(self, dev_name, conf_name, data):
+        self.dev_set.setData(dev_name, conf_name, data)
+        
     def putResultQueue(self, handle, data):
         self.rLock.acquire()
         self.resultQueue.put_nowait({'handle' : handle, 'data' : data})
