@@ -31,7 +31,7 @@ def doConnect(session):
         else:
             pass
     elif SmartServer().server_type == 'node':
-        SmartServer().server.upload_Time = datetime.now()
+        SmartServer().server.setUploadSessionflag(True)
         
 def doClose(session):
     c_ip = session.addr[0]
@@ -40,9 +40,14 @@ def doClose(session):
             SmartServer().server.unit_server_map[c_ip].setState(False)
         else:
             pass
-    elif SmartServer().server_type == 'node':
-        if c_ip in SmartServer().server.node_server_map:
+    elif SmartServer().server_type == 'unit':
+        if c_ip == SmartServer().server.area_ip:
+            SmartServer().server.setUploadSession(None)
+        elif c_ip in SmartServer().server.node_server_map:
             SmartServer().server.node_server_map[c_ip].setState(False)
+    elif SmartServer().server_type == 'node':
+        if c_ip == SmartServer().server.unit_ip:
+            SmartServer().server.setUploadSessionflag(False)
         else:
             pass
 
@@ -185,6 +190,12 @@ class sessionSet():
         self.handleResult = handleResult
         self.process_map = {}
         self.thread_map = {}
+    
+    def getDataItem(self, session_name, dev_name, conf_name):
+        if session_name in self.session_map:
+            return self.session_map[session_name].getDataItem(dev_name, conf_name)
+        else:
+            pass
         
     def getData(self, session_name, dev_name, conf_name):
         if session_name in self.session_map:
@@ -447,13 +458,22 @@ def PingIP(strIp):
         return False
     else:
         return True
+    
+def doAreaInit(area_server):
+    for key, server in area_server.unit_server_map:
+        if server.state is False:
+            area_server.setUnitState(key, False)
+        else:
+            pass
         
 class AreaDataServer(data_server):
-    def __init__(self, server_ip, server_name):
+    def __init__(self, server_ip, server_name, handleTimer):
         data_server.__init__(self, server_ip, server_name, True)
         self.server_type = 'area'
         self.unit_server_map = {}
         self.node_server_map = {}
+        self.name_ip_map = {}
+        self.handleTimer = handleTimer
         
     def setUnitState(self, unit_ip ,flag):
         self.unit_server_map[unit_ip].setState(flag)
@@ -465,27 +485,59 @@ class AreaDataServer(data_server):
             else:
                 pass
             
-    def getData(self, ename):
+    def getRealValue(self, ename):
+        value = None
         if ename in self.dataConfs:
             dataconf = self.dataConfs[ename]
             if dataconf.sever_name == self.server_name:
-                data_server.getData(self, dataconf)
-            elif dataconf.sever_name in SmartServer().unit_ip_map:
-                u_ip = SmartServer().unit_ip_map[dataconf.sever_name]
-                if u_ip in self.unit_server_map:
-                    return self.unit_server_map[u_ip].getData(dataconf)
+                value = data_server.getRealValue(self, data_conf)
+            elif dataconf.sever_name in self.name_ip_map:
+                server_ip = self.name_ip_map[dataconf.sever_name]
+                if server_ip in self.unit_server_map:
+                    value = self.unit_server_map[server_ip].getRealValue(dataconf)
                 else:
-                    pass
-            elif dataconf.sever_name in SmartServer().node_ip_map:
-                n_ip = SmartServer().node_ip_map[dataconf.sever_name]
-                if n_ip in self.node_server_map:
-                    return self.node_server_map[n_ip].getData(dataconf)
-                else:
-                    pass
+                    value = self.node_server_map[server_ip].getRealValue(dataconf)
             else:
                 pass
         else:
             pass
+        return value
+            
+    def getData(self, ename):
+        data = None
+        if ename in self.dataConfs:
+            dataconf = self.dataConfs[ename]
+            if dataconf.sever_name == self.server_name:
+                data = data_server.getData(self, dataconf)
+            elif dataconf.sever_name in self.name_ip_map:
+                server_ip = self.name_ip_map[dataconf.sever_name]
+                if server_ip in self.unit_server_map:
+                    data = self.unit_server_map[server_ip].getData(dataconf)
+                else:
+                    data = self.node_server_map[server_ip].getdata(dataconf)
+            else:
+                pass
+        else:
+            pass
+        return data
+            
+    def getDataValue(self, ename):
+        value = None
+        if ename in self.dataConfs:
+            dataconf = self.dataConfs[ename]
+            if dataconf.sever_name == self.server_name:
+                value = data_server.getDataValue(self, dataconf)
+            elif dataconf.sever_name in self.name_ip_map:
+                server_ip = self.name_ip_map[dataconf.sever_name]
+                if server_ip in self.unit_server_map:
+                    value = self.unit_server_map[server_ip].getDataValue(dataconf)
+                else:
+                    value = self.node_server_map[server_ip].getDataValue(dataconf)
+            else:
+                pass
+        else:
+            pass
+        return value
         
         
     def initServer(self, handleData):
@@ -493,39 +545,109 @@ class AreaDataServer(data_server):
             self.unit_server_map[u_ip] = data_server(u_ip, u_name, False, 
                     AsyncSession(self.server_ip,8899,handleData,
                                  Server_Param(u_ip,u_name,'unit'),self.db))
+            self.name_ip_map[u_name] = u_ip
         for n_ip, n_name in SmartServer().ip_node_map:
             self.node_server_map[n_ip] = data_server(n_ip, n_name, False, None)
+            self.name_ip_map[n_name] = n_ip
+        self.timer = threading.Timer(3,self.handleTimer)
+        self.timer.start()
     
+def doUnitInit(unit_server):
+    for key,server in unit_server.node_server_map:
+        if server.state is False:
+            unit_server.setNodeState(key,False)
+        else:
+            pass
+    if unit_server.upload_Session is None or unit_server.upload_Session.connected is False:
+        unit_server.setUploadSession(None,False)
+    else:
+        pass
+            
 
 class UnitDataServer(data_server):
-    def __init__(self, server_ip, server_name):
+    def __init__(self, server_ip, server_name, handleTimer):
         data_server.__init__(self, server_ip, server_name, True)
         self.server_type = 'unit'
         self.upload_Session = None
-        self.dis_time = datetime.now()
+        self.dis_time = None
         self.node_server_map = {}
+        self.name_ip_map = {}
         self.AreaSendData = {}
         self.transmitData = {}
         self.init_ip = self.server_ip
         self.area_ip = SmartServer().area_ip
+        self.handleTimer = handleTimer
+        self.firstflag = True
+        self.handleTask = None
+        self.handleResult = None
+        
+    def setUploadSession(self, session, flag):
+        self.upload_Session = session
+        if flag is False:
+            self.dis_time = datetime.now()
+        else:
+            if self.firstflag is False:
+                self.initData(self.area_ip, self.handleTask, self.handleResult)
+#                 程序计算开始
+            if self.firstflag:
+                self.firstflag = False
         
     def setNodeState(self, node_ip ,flag):
         self.node_server_map[node_ip].setState(flag)
         
+    def getRealValue(self, ename):
+        value = None
+        if ename in self.dataConfs:
+            dataconf = self.dataConfs[ename]
+            value = data_server.getRealValue(self, data_conf)
+        elif dataconf.server_name in self.name_ip_map:
+            value = self.node_server_map[self.name_ip_map[dataconf.server_name]].\
+            getRealValue(dataconf)
+        else:
+            value = None
+            if ename in self.AreaSendData or ename in self.transmitData:
+                data = self.getData(data_conf)
+                value = data.getRealValue()
+            else:
+                pass
+        return value
+        
+    def getDataValue(self, ename):
+        value = None
+        if ename in self.dataConfs:
+            dataconf = self.dataConfs[ename]
+            if dataconf.server_name == self.server_name:
+                value = data_server.getDataValue(self, data_conf)
+            elif dataconf.server_name in self.name_ip_map:
+                value = self.node_server_map[self.name_ip_map[dataconf.server_name]].\
+                getDataValue(data_conf)
+            else:
+                value = None
+                if ename in self.AreaSendData or ename in self.transmitData:
+                    dataitem = self.AreaSendData[ename]
+                    data = self.getData(data_conf)
+                    dataitem.setData(data)
+                    value = dataitem.getValue()
+                else:
+                    pass
+        else:
+            pass
+        return value
+                
+        
     def getData(self, ename):
+        rd = None
         if ename in self.dataConfs:
             dataconf = self.dataConfs[ename]
             if dataconf.sever_name == self.server_name:
-                data_server.getData(self, dataconf)
+                rd = data_server.getData(self, dataconf)
             elif dataconf.sever_name in SmartServer().node_ip_map:
                 n_ip = SmartServer().node_ip_map[dataconf.sever_name]
                 if n_ip in self.node_server_map:
-                    return self.node_server_map[n_ip].getData(dataconf)
+                    rd = self.node_server_map[n_ip].getData(dataconf)
                 else:
                     pass
             else:
-                rd = None
-                dataconf = self.dataConfs[ename]
                 if dataconf.sever_name == 'area':
                     if ename in self.AreaSendData:
                         rd = self.AreaSendData[ename].getData()
@@ -536,15 +658,14 @@ class UnitDataServer(data_server):
                         rd = self.transmitData[ename].getData()
                     else:
                         pass
-                if self.upload_Session is None or self.upload_Session.connected is False:
-                    if rd:
-                        rd.dis_flag = True
-                        rd.dis_flag = self.upload_Time
+                if rd and rd.dis_time < self.dis_time:
+                    rd.dis_flag = True
+                    rd.dis_flag = self.dis_time
                 else:
                     pass
-                return rd
         else:
             pass
+        return rd
         
     def initServer(self, handleTask, handleResult):
         if PingIP(self.area_ip):
@@ -557,6 +678,9 @@ class UnitDataServer(data_server):
                 node_ip = SmartServer().node_ip_map[node]
                 self.node_server_map[node_ip] = data_server(node_ip,node,False)
                 self.node_server_map[node_ip].initData(self.init_ip)
+                self.name_ip_map[node] = node_ip
+        self.timer = threading.Timer(3,self.handleTimer)
+        self.timer.start()
         
     def initOtherData(self):
         db = self.db
@@ -588,14 +712,43 @@ class UnitDataServer(data_server):
                 self.transmitData[res['data_ename']] = data_param(data,dataconstraint)
         sqlConnection.close()
         
-        
+def doNodeInit(node_server):
+    if node_server.upload_Session.connected is False:
+        node_server.setUploadSessionflag(False)
+    else:
+        pass
+            
 class NodeDataServer(data_server):
-    def __init__(self, server_ip, server_name):
+    def __init__(self, server_ip, server_name, handleTimer):
         data_server.__init__(self, server_ip, server_name, True)
         self.server_type = 'node'
         self.init_ip = self.server_ip
         self.upload_Session = None
-        self.dis_time = datetime.now()
+        self.dis_time = None
+        self.unit_ip = None
+        self.firstflag = True
+        self.handleTask = None
+        self.handleResult = None
+        self.handleTimer = handleTimer
+        
+    def setUploadSessionflag(self, flag):
+        startcmp = False
+        if flag is False:
+            self.dis_time = datetime.now()
+        else:
+            if self.firstflag:
+                self.firstflag = False
+                if self.init_ip == self.server_ip:
+                    self.initServer(self.handleTask, self.handleResult)
+                    startcmp = True
+                else:
+                    pass
+            else:
+                self.initServer(self.handleTask, self.handleResult)
+                startcmp = True
+        if startcmp:
+            pass
+#             程序计算开始
         
     def getData(self, ename):
         if ename in self.dataConfs:
@@ -608,9 +761,12 @@ class NodeDataServer(data_server):
             pass
     
     def initServer(self, handleTask, handleResult):
+        self.handleTask = handleTask
+        self.handleResult = handleResult
         area_ip = SmartServer().area_ip
         unit_name = SmartServer().ip_unit_map[SmartServer().node_unit_map[self.server_name]]
         unit_ip = SmartServer().node_ip_map[unit_name]
+        self.unit_ip = unit_ip
         if PingIP(unit_ip):
             if PingIP(area_ip):
                 self.init_ip = area_ip
@@ -621,6 +777,8 @@ class NodeDataServer(data_server):
         self.initData(self.init_ip, handleTask, handleResult)
         self.upload_Session = AsyncSession(unit_ip,8899,handleData,
                                  Server_Param(unit_name,unit_ip,'unit'),self.db)
+        self.timer = threading.Timer(3,self.handleTimer)
+        self.timer.start()
         
         
 def handleData(client):
@@ -656,8 +814,7 @@ def handleConnect(pair):
     sockSession = None
     if addr[0] == SmartServer().area_ip:
         sockSession = AsyncClient(sock,handleData,('area',addr[0],'area'))
-        SmartServer().server.upload_Session = sockSession
-        SmartServer().server.upload_Time = datetime.now()
+        SmartServer().server.setUploadSession(sockSession)
     elif addr[0] in SmartServer().ip_node_map:
         sockSession = AsyncClient(sock,handleData,(SmartServer().ip_node_map[addr[0]],addr[0],'node'))
         SmartServer().server.node_server_map[addr[0]].sockSession = sockSession

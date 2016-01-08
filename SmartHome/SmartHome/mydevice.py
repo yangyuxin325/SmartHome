@@ -131,6 +131,8 @@ class device():
                 self.connectState = True
             else:
                 self.connectState = False
+        else:
+            self.setDisConnect(False)
                 
     def setDataValue(self, conf_name ,value):
         if conf_name in self.data_dict:
@@ -143,11 +145,21 @@ class device():
                 pass
         else:
             pass
+    
+    def getDataItem(self, conf_name):
+        data = self.getData(conf_name)
+        if data:
+            item = self.data_dict[conf_name]
+            item.setData(data)
+        else:
+            pass
         
     def getDataValue(self, conf_name):
-        data = self.getData(conf_name)
-        self.data_dict[conf_name].setData(data)
-        return self.data_dict[conf_name].getValue()
+        item =  self.getDataItem(conf_name)
+        if item:
+            return item.getValue()
+        else:
+            pass
     
     def getRealValue(self, conf_name):
         data = self.getData(conf_name)
@@ -247,7 +259,6 @@ class infrared(device):
     
     def dataParse(self, data):
         device.dataParse(self, data)
-        self.setDisConnect(False)
         try:
             YWren = (data[3] & 3)
             LedState = ((data[3] & 12) >> 2)
@@ -286,7 +297,6 @@ class co2(device):
     
     def dataParse(self, data):
         device.dataParse(self, data)
-        self.setDisConnect(False)
         try :
             CO2 = data[3]*256 + data[4]
             self.setDataValue('CO2', CO2)
@@ -414,7 +424,6 @@ class stc_1(device):
     def dataParse(self, data):
         try :
             device.dataParse(self, data)
-            self.setDisConnect(False)
             self._Parsedict[data[1]](data)
         except Exception as e:
             print "mokuai dataParse :", e
@@ -535,7 +544,6 @@ class stc_201(device):
     def dataParse(self, data):
         try :
             device.dataParse(self, data)
-            self.setDisConnect(False)
             self._Parsedict[data[1]](data)
         except Exception as e:
             print "mokuai dataParse :", e
@@ -649,7 +657,6 @@ class plc(device):
     def dataParse(self, data):
         try :
             device.dataParse(self, data)
-            self.setDisConnect(False)
             self._Parsedict[data[1]](data)
         except Exception as e:
             print "plc dataParse :", e
@@ -687,7 +694,6 @@ class sansu(device):
 
     def dataParse(self, data):
         device.dataParse(self, data)
-        self.setDisConnect(False)
         try :
             Wind = data[3]*256 + data[4]
             Fa1 = data[5]*256 + data[6]
@@ -873,7 +879,6 @@ class triplecng(device):
     
     def dataParse(self, data):
         device.dataParse(self, data)
-        self.setDisConnect(False)
         try:
             data_type = data[2]//2
             str_type = str(data_type)
@@ -968,7 +973,6 @@ class voc(device):
     
     def dataParse(self, data):
         device.dataParse(self, data)
-        self.setDisConnect(False)
         try:
             VOC = (data[3]*256 + data[4])/10.0
             Temperature = (data[5]*256 + data[6])/10.0
@@ -1018,7 +1022,6 @@ class wenkong(device):
     
     def dataParse(self, data):
         device.dataParse(self, data)
-        self.setDisConnect(False)
         try :
             OnOff = data[4]
             Mode = data[5] * 256 + data[6]
@@ -1095,7 +1098,6 @@ class ZMA194E(device):
     def dataParse(self, data):
         import struct
         device.dataParse(self, data)
-        self.setDisConnect(False)
         try :
             data_type = data[2]//2
             if data_type == 3:

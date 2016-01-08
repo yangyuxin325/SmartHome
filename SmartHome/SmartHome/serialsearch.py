@@ -22,6 +22,7 @@ def getSerialCOM():
 
 def InitSerialNo(db):
     dit = getSerialCOM()
+    print dit
     mdit = sorted(dit.items(), key=lambda dit:dit[0])
     sqlConnection = torndb.Connection(db.addr, db.name, user=db.user, password=db.password)
     first_index = None

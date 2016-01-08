@@ -44,10 +44,21 @@ class data_session():
         self.useflag = False
         self.dis_time = None
         
-    def getDataValue(self, dev_name, conf_name):
+    def getDataItem(self, dev_name, conf_name):
         data = self.getData(dev_name, conf_name)
-        self.setData(dev_name, conf_name, data)
-        return self.dev_set.dev_dict[dev_name].getDataValue(conf_name)
+        if data:
+            dataitem = self.dev_set.getDeviceDataItem(dev_name, conf_name)
+            dataitem.setData(data)
+            return dataitem
+        else:
+            pass
+        
+    def getDataValue(self, dev_name, conf_name):
+        dataitem = self.getDataItem(dev_name, conf_name)
+        if dataitem:
+                return dataitem.getValue()
+        else:
+            pass
     
     def getRealValue(self, dev_name, conf_name):
         data = self.getData(dev_name, conf_name)
@@ -140,7 +151,7 @@ class data_session():
             self.recvGR = greenlet(self.__receiveData)
             self.sendGR.switch()
         else:
-            pass
+            self.dis_time = datetime.now()
             
     def __doTask(self):
         while self.alive:
