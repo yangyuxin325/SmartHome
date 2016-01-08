@@ -5,6 +5,7 @@ Created on 2015年12月16日
 
 @author: sanhe
 '''
+from datetime import datetime
 __metaclass__ = type
 
 device_Dict = {}
@@ -109,8 +110,6 @@ class device():
         self.linkset = set()
         self.disCount = None
         self.connectState = None
-        self.disCount_timing = 0
-        self.otherdata_timing = 0
         
     def addData(self, conf_name, data, link_conf=None):
         if link_conf is None:
@@ -132,13 +131,10 @@ class device():
                 self.connectState = True
             else:
                 self.connectState = False
-    
-    def setDataValue(self, conf_name ,value):
-        if conf_name == 'DisCount':
-            self.disCount_timing = self.otherdata_timing + 1
         else:
-            if self.disCount_timing > self.otherdata_timing:
-                self.otherdata_timing = self.disCount_timing + 1
+            self.setDisConnect(False)
+                
+    def setDataValue(self, conf_name ,value):
         if conf_name in self.data_dict:
             self.data_dict[conf_name].setValue(value)
             if conf_name in self.linkset:
@@ -149,20 +145,44 @@ class device():
                 pass
         else:
             pass
+    
+    def getDataItem(self, conf_name):
+        data = self.getData(conf_name)
+        if data:
+            item = self.data_dict[conf_name]
+            item.setData(data)
+        else:
+            pass
+        
+    def getDataValue(self, conf_name):
+        item =  self.getDataItem(conf_name)
+        if item:
+            return item.getValue()
+        else:
+            pass
+    
+    def getRealValue(self, conf_name):
+        data = self.getData(conf_name)
+        return data.getRealValue()
                         
     def getData(self, conf_name):
-        discount_Data = self.data_dict[conf_name].getData()
         if conf_name in self.data_dict:
+            disCount_Data = self.data_dict['DisCount'].getData()
             if conf_name == 'DisCount':
-                return discount_Data
+                return disCount_Data
             else:
-                if self.disCount_timing > self.otherdata_timing:
-                    other_Data = self.data_dict[conf_name].getData()
-                    other_Data.dis_flag = discount_Data.dis_flag
-                    other_Data.dis_time = discount_Data.dis_time
-                    return other_Data
+                data = self.data_dict[conf_name].getData()
+                if data.dis_time > disCount_Data.dis_time:
+                    return data
                 else:
-                    return self.data_dict[conf_name].getData()
+                    data.dis_flag = disCount_Data.dis_flag
+                    data.dis_time = disCount_Data.dis_time
+                    return data
+        else:
+            pass
+    
+    def setData(self, conf_name, data):
+        self.data_dict[conf_name] = data
                         
     def setDisConnect(self, flag):
         if self.disCount is None:
@@ -181,6 +201,10 @@ class device():
                 self.setDataValue('DisCount',self.disCount)
                 if self.data_dict['DisCount'].getRealValue() > 0:
                     self.connectState = False
+                    data = self.data_dict['DisCount'].getData()
+                    data.dis_flag = True
+                    data.dis_time = datetime.now()
+                    self.data_dict['DisCount'].setData(data)
                 else:
                     pass
             else:
@@ -235,7 +259,6 @@ class infrared(device):
     
     def dataParse(self, data):
         device.dataParse(self, data)
-        self.setDisConnect(False)
         try:
             YWren = (data[3] & 3)
             LedState = ((data[3] & 12) >> 2)
@@ -274,7 +297,6 @@ class co2(device):
     
     def dataParse(self, data):
         device.dataParse(self, data)
-        self.setDisConnect(False)
         try :
             CO2 = data[3]*256 + data[4]
             self.setDataValue('CO2', CO2)
@@ -402,7 +424,6 @@ class stc_1(device):
     def dataParse(self, data):
         try :
             device.dataParse(self, data)
-            self.setDisConnect(False)
             self._Parsedict[data[1]](data)
         except Exception as e:
             print "mokuai dataParse :", e
@@ -523,7 +544,6 @@ class stc_201(device):
     def dataParse(self, data):
         try :
             device.dataParse(self, data)
-            self.setDisConnect(False)
             self._Parsedict[data[1]](data)
         except Exception as e:
             print "mokuai dataParse :", e
@@ -637,7 +657,6 @@ class plc(device):
     def dataParse(self, data):
         try :
             device.dataParse(self, data)
-            self.setDisConnect(False)
             self._Parsedict[data[1]](data)
         except Exception as e:
             print "plc dataParse :", e
@@ -675,7 +694,6 @@ class sansu(device):
 
     def dataParse(self, data):
         device.dataParse(self, data)
-        self.setDisConnect(False)
         try :
             Wind = data[3]*256 + data[4]
             Fa1 = data[5]*256 + data[6]
@@ -861,7 +879,6 @@ class triplecng(device):
     
     def dataParse(self, data):
         device.dataParse(self, data)
-        self.setDisConnect(False)
         try:
             data_type = data[2]//2
             str_type = str(data_type)
@@ -956,7 +973,6 @@ class voc(device):
     
     def dataParse(self, data):
         device.dataParse(self, data)
-        self.setDisConnect(False)
         try:
             VOC = (data[3]*256 + data[4])/10.0
             Temperature = (data[5]*256 + data[6])/10.0
@@ -1006,7 +1022,6 @@ class wenkong(device):
     
     def dataParse(self, data):
         device.dataParse(self, data)
-        self.setDisConnect(False)
         try :
             OnOff = data[4]
             Mode = data[5] * 256 + data[6]
@@ -1083,7 +1098,6 @@ class ZMA194E(device):
     def dataParse(self, data):
         import struct
         device.dataParse(self, data)
-        self.setDisConnect(False)
         try :
             data_type = data[2]//2
             if data_type == 3:

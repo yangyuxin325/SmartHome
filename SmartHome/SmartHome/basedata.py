@@ -9,13 +9,13 @@ from datetime import datetime
 import math
 __metaclass__ = type
 class data_conf():
-    def __init__(self, ename, cname, server_name, data_type, sess_name=None, dev_id=None, conf_name=None):
+    def __init__(self, ename, cname, server_name, data_type, sess_name=None, dev_name=None, conf_name=None):
         self.data_ename = ename
         self.data_cname = cname
         self.server_name = server_name
         self.data_type = data_type
         self.session_name = sess_name
-        self.device_id = dev_id
+        self.device_name = dev_name
         self.conf_name = conf_name
         
 class data_constraint():
@@ -70,7 +70,7 @@ class data_param():
             self.__count = 0
             self.__start_time = None
         self.__reason = None
-        
+
     def setData(self, data):
         if self.__data != data:
             self.__ischanged = True
