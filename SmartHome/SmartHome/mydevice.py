@@ -5,6 +5,7 @@ Created on 2015年12月16日
 
 @author: sanhe
 '''
+from datetime import datetime
 __metaclass__ = type
 
 device_Dict = {}
@@ -109,8 +110,6 @@ class device():
         self.linkset = set()
         self.disCount = None
         self.connectState = None
-        self.disCount_timing = 0
-        self.otherdata_timing = 0
         
     def addData(self, conf_name, data, link_conf=None):
         if link_conf is None:
@@ -132,13 +131,8 @@ class device():
                 self.connectState = True
             else:
                 self.connectState = False
-    
+                
     def setDataValue(self, conf_name ,value):
-        if conf_name == 'DisCount':
-            self.disCount_timing = self.otherdata_timing + 1
-        else:
-            if self.disCount_timing > self.otherdata_timing:
-                self.otherdata_timing = self.disCount_timing + 1
         if conf_name in self.data_dict:
             self.data_dict[conf_name].setValue(value)
             if conf_name in self.linkset:
@@ -149,22 +143,31 @@ class device():
                 pass
         else:
             pass
+        
+    def getDataValue(self, conf_name):
+        data = self.getData(conf_name)
+        self.data_dict[conf_name].setData(data)
+        return self.data_dict[conf_name].getValue()
+    
+    def getRealValue(self, conf_name):
+        data = self.getData(conf_name)
+        return data.getRealValue()
                         
     def getData(self, conf_name):
-        if conf_name not in self.data_dict:
-            return None
-        discount_Data = self.data_dict[conf_name].getData()
         if conf_name in self.data_dict:
+            disCount_Data = self.data_dict['DisCount'].getData()
             if conf_name == 'DisCount':
-                return discount_Data
+                return disCount_Data
             else:
-                if self.disCount_timing > self.otherdata_timing:
-                    other_Data = self.data_dict[conf_name].getData()
-                    other_Data.dis_flag = discount_Data.dis_flag
-                    other_Data.dis_time = discount_Data.dis_time
-                    return other_Data
+                data = self.data_dict[conf_name].getData()
+                if data.dis_time > disCount_Data.dis_time:
+                    return data
                 else:
-                    return self.data_dict[conf_name].getData()
+                    data.dis_flag = disCount_Data.dis_flag
+                    data.dis_time = disCount_Data.dis_time
+                    return data
+        else:
+            pass
     
     def setData(self, conf_name, data):
         self.data_dict[conf_name] = data
@@ -186,6 +189,10 @@ class device():
                 self.setDataValue('DisCount',self.disCount)
                 if self.data_dict['DisCount'].getRealValue() > 0:
                     self.connectState = False
+                    data = self.data_dict['DisCount'].getData()
+                    data.dis_flag = True
+                    data.dis_time = datetime.now()
+                    self.data_dict['DisCount'].setData(data)
                 else:
                     pass
             else:

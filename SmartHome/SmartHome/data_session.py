@@ -9,6 +9,7 @@ import time
 import multiprocessing
 import threading
 from greenlet import greenlet
+from datetime import datetime
 
 def Sum_Right(array):
     check_sum = 0
@@ -40,9 +41,32 @@ class data_session():
         self.handleTask = handleTask
         self.alive = False
         self.com = None
+        self.useflag = False
+        self.dis_time = None
+        
+    def getDataValue(self, dev_name, conf_name):
+        data = self.getData(dev_name, conf_name)
+        self.setData(dev_name, conf_name, data)
+        return self.dev_set.dev_dict[dev_name].getDataValue(conf_name)
+    
+    def getRealValue(self, dev_name, conf_name):
+        data = self.getData(dev_name, conf_name)
+        return data.getRealValue()
         
     def getData(self, dev_name, conf_name):
-        return self.dev_set.getData(dev_name, conf_name)
+        if self.useflag:
+            data = self.dev_set.getData(dev_name, conf_name)
+            if data.dis_time < self.dis_time:
+                if self.alive is False:
+                    data.dis_flag = True
+                    data.dis_time = self.dis_time
+                else:
+                    pass
+            else:
+                pass
+            return data
+        else:
+            return self.dev_set.getData(dev_name, conf_name)
     
     def setData(self, dev_name, conf_name, data):
         self.dev_set.setData(dev_name, conf_name, data)
@@ -96,6 +120,7 @@ class data_session():
             print 'Open %s , %s Serial fail' % (self.session_name, self.port)
             
     def isOpen(self):
+        self.useflag = True
         if self.com :
             return self.com.isOpen()
         
@@ -162,6 +187,7 @@ class data_session():
     def closeSerial(self):
         if(type(self.com) != type(None)):
             self.alive = False
+            self.dis_time = datetime.now()
             self.com.close()
         else:
             pass

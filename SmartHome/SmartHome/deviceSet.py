@@ -95,7 +95,8 @@ class deviceSet():
             self.device_dict[self.name_idMap[dev_name]].getData(conf_name)
         
     def setData(self, dev_name, conf_name, data):
-        self.device_dict[self.name_idMap[dev_name]].setData(conf_name, data)
+        if dev_name in self.name_idMap:
+            self.device_dict[self.name_idMap[dev_name]].setData(conf_name, data)
             
     def setDisConnect(self, dev_id, flag):
         if dev_id in self.dev_dict:
