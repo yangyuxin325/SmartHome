@@ -16,6 +16,8 @@ from basedata import data_conf
 from basedata import basic_data
 from basedata import data_constraint
 from basedata import data_param
+from copy import deepcopy
+from decimal import *
 
 class Server_Param():
     def __init__(self, server_name, server_ip, server_type):
@@ -273,11 +275,28 @@ class SmartServer(object):
     node_unit_map = {}
     startCmpFlag = False
     start_lock = threading.Lock()
+    cache_data = {}
+    cache_mutex =  threading.Lock()
         
     def __new__(cls, *args, **kwarg):
         if not cls.instance:
             cls.instance = super(SmartServer, cls).__new__(cls, *args, **kwarg)
         return cls.instance
+    
+    @classmethod
+    def putDataToCache(self, ename, data):
+        self.cache_mutex.acquire()
+        self.cache_data[ename] = data
+        self.cache_mutex.release()
+        
+    @classmethod
+    def getAndClearDataCache(self):
+        cache = {}
+        self.cache_mutex.acquire()
+        deepcopy(self.cache_data)
+        self.cache_data.clear()
+        self.cache_mutex.release()
+        return cache
     
     def Init(self, server_ip, port):
         self.server_ip = server_ip
@@ -492,8 +511,11 @@ class data_server():
             DataInfo.data_ename = DataType.data_ename and DataType.server_name = %s \
             and DataType.data_type = %s",self.server_name,k)
             for res in ress:
-                dataconstraint = data_constraint(res['min_variation'],res['min_val'],res['max_val'],res['dis_interval'])
-                data = basic_data(res['value'],res['error_flag'],res['time'],res['dis_flag'],res['dis_time'])
+                dataconstraint = data_constraint(float(res[0]['min_variation']),\
+                float(res[0]['min_val']) if res[0]['min_val'] else res[0]['min_val'],\
+                float(res[0]['max_val']) if res[0]['max_val'] else res[0]['max_val'],\
+                                                     res[0]['dis_interval'])
+                data = basic_data(float(res['value']),res['error_flag'],res['time'],res['dis_flag'],res['dis_time'])
                 self.udev_data[res['data_type']][res['data_ename']] = data_param(data,dataconstraint)
         sqlConnection.close()
         
@@ -763,8 +785,11 @@ class UnitDataServer(data_server):
             DataConstraint.dis_interval from DataInfo inner join DataConstraint inner join \
             on DataInfo.data_ename = DataConstraint.data_ename and \
             DataInfo.data_ename = %s",res['data_ename'])
-            dataconstraint = data_constraint(sets[0]['min_variation'],sets[0]['min_val'],sets[0]['max_val'],sets[0]['dis_interval'])
-            data = basic_data(sets[0]['value'],sets[0]['error_flag'],sets[0]['time'],sets[0]['dis_flag'],sets[0]['dis_time'])
+            dataconstraint = data_constraint(float(sets[0]['min_variation']),\
+                    float(sets[0]['min_val']) if sets[0]['min_val'] else sets[0]['min_val'],\
+                    float(sets[0]['max_val']) if sets[0]['max_val'] else sets[0]['max_val'],\
+                                                     sets[0]['dis_interval'])
+            data = basic_data(float(sets[0]['value']),sets[0]['error_flag'],sets[0]['time'],sets[0]['dis_flag'],sets[0]['dis_time'])
             if res['server_name'] == 'area':
                 self.AreaSendData[res['data_ename']] = data_param(data,dataconstraint)
             else:

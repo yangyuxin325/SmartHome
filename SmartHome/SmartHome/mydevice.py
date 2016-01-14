@@ -135,7 +135,7 @@ class device():
             self.setDisConnect(False)
                 
     def setDataValue(self, conf_name ,value):
-        if conf_name in self.data_dict:
+        if conf_name in self.data_dict and self.data_dict[conf_name]:
             self.data_dict[conf_name].setValue(value)
             if conf_name in self.linkset:
                 for k,v in self.data_linkpara:
@@ -335,7 +335,7 @@ class stc_1(device):
             if self.SUPPORTED_INSTRUCTIONS[key][1] > 0 :
                 for num in range(self.SUPPORTED_INSTRUCTIONS[key][1]):
                     str_name = str_fisrt + str(num+1)
-                    self._datadict.update({str_name : None})
+                    self.datadict.update({str_name : None})
         self._Algorithm_dict = {}
         
         self._Parsedict = {
@@ -447,7 +447,7 @@ class stc_201(device):
             if self.SUPPORTED_INSTRUCTIONS[key][1] > 0 :
                 for num in range(self.SUPPORTED_INSTRUCTIONS[key][1]):
                     str_name = str_fisrt + str(num+1)
-                    self._datadict.update({str_name : None})
+                    self.datadict.update({str_name : None})
         self._Algorithm_dict = {}
         
         self._Parsedict = {
@@ -578,7 +578,7 @@ class plc(device):
             if self.SUPPORTED_INSTRUCTIONS[key][1] > 0 :
                 for num in range(self.SUPPORTED_INSTRUCTIONS[key][1]):
                     str_name = str_fisrt + str(num+1)
-                    self._datadict.update({str_name : None})
+                    self.datadict.update({str_name : None})
         self._Algorithm_dict = {}
         
         self._Parsedict = {
