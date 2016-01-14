@@ -19,6 +19,32 @@ from basedata import data_param
 from copy import deepcopy
 from decimal import *
 
+# 被动socket数据处理
+def handleData(sockSession):
+    buf = sockSession.recv(100)
+    print buf.strip()
+    sockSession.sendData("yang")
+    
+# 主动socket数据处理
+def handleDataAct(sockSession):
+    buf = sockSession.recv(100)
+    print buf.strip()
+    sockSession.sendData("yang")
+
+# data_session中的任务处理句柄
+def handleTask(data_sess, data):
+    pass
+
+# MyThread中的结果处理句柄
+def handleResult(result_data):
+    pass
+
+DOhandles_Args_dict = {
+                       'region' : {'handleData' : handleDataAct},
+                       'unit' : {'handleTask' : handleTask, 'handleResult' : handleResult},
+                       'node' : {'handleData' : handleDataAct, 'handleTask' : handleTask, 'handleResult' : handleResult},
+                       }
+
 class Server_Param():
     def __init__(self, server_name, server_ip, server_type):
         self.server_name = server_name
@@ -27,31 +53,37 @@ class Server_Param():
         
 def doConnect(session):
     c_ip = session.addr[0]
-    if SmartServer().server_type == 'area':
-        if c_ip in SmartServer().server.unit_server_map:
-            SmartServer().server.unit_server_map[c_ip].setState(True)
+    if DSAURServer().server_type == 'area':
+        if c_ip in DSAURServer().server.unit_server_map:
+            DSAURServer().server.unit_server_map[c_ip].setState(True)
         else:
             pass
-    elif SmartServer().server_type == 'node':
-        SmartServer().server.setUploadSessionflag(True)
+    elif DSAURServer().server_type == 'node':
+        DSAURServer().server.setUploadSessionflag(True)
+        
+def deleteClient(client):
+    if id(client) in DSAURServer.client_map:
+        del DSAURServer.client_map[id(client)]
         
 def doClose(session):
     c_ip = session.addr[0]
-    if SmartServer().server_type == 'area':
-        if c_ip in SmartServer().server.unit_server_map:
-            SmartServer().server.unit_server_map[c_ip].setState(False)
+    if DSAURServer().server_type == 'area':
+        if c_ip in DSAURServer().server.unit_server_map:
+            DSAURServer().server.unit_server_map[c_ip].setState(False)
         else:
-            pass
-    elif SmartServer().server_type == 'unit':
-        if c_ip == SmartServer().server.area_ip:
-            SmartServer().server.setUploadSession(None)
-        elif c_ip in SmartServer().server.node_server_map:
-            SmartServer().server.node_server_map[c_ip].setState(False)
-    elif SmartServer().server_type == 'node':
-        if c_ip == SmartServer().server.unit_ip:
-            SmartServer().server.setUploadSessionflag(False)
+            deleteClient(session)
+    elif DSAURServer().server_type == 'unit':
+        if c_ip == DSAURServer().server.region_ip:
+            DSAURServer().server.setUploadSession(None)
+        elif c_ip in DSAURServer().server.node_server_map:
+            DSAURServer().server.node_server_map[c_ip].setState(False)
         else:
-            pass
+            deleteClient(session)
+    elif DSAURServer().server_type == 'node':
+        if c_ip == DSAURServer().server.unit_ip:
+            DSAURServer().server.setUploadSessionflag(False)
+        else:
+            deleteClient(session)
 
 class AsyncSession(asyncore.dispatcher_with_send):
     def __init__(self, host, port, handleData, server_para, db=None):
@@ -264,22 +296,21 @@ class sessionSet():
         else:
             pass
         
-class SmartServer(object):
+class DSAURServer(object):
     instance = None
-    area_ip = None
+    region_ip = None
     ip_name_map = {}
     name_ip_map = {}
     unit_ipset = set()
     node_ipset = set()
     node_unit_map = {}
-    startCmpFlag = False
-    start_lock = threading.Lock()
     cache_data = {}
     cache_mutex =  threading.Lock()
+    client_map = {}
         
     def __new__(cls, *args, **kwarg):
         if not cls.instance:
-            cls.instance = super(SmartServer, cls).__new__(cls, *args, **kwarg)
+            cls.instance = super(DSAURServer, cls).__new__(cls, *args, **kwarg)
         return cls.instance
     
     @classmethod
@@ -311,7 +342,7 @@ class SmartServer(object):
             self.name_ip_map[res['server_name']] = res['server_ip']
             self.ip_name_map[res['server_ip']] = res['server_name']
             if res['server_type'] == 'area':
-                self.area_ip = res['server_ip']
+                self.region_ip = res['server_ip']
             elif res['server_type'] == 'unit':
                 self.unit_ipset.add(res['server_ip'])
             elif res['server_type'] == 'node':
@@ -319,9 +350,9 @@ class SmartServer(object):
             else:
                 pass
         sqlConnection.close()
-        if self.server_ip == self.area_ip:
-            print 'Area'
-            self.server_type = 'area'
+        if self.server_ip == self.region_ip:
+            print 'region'
+            self.server_type = 'region'
         elif self.server_ip in self.unit_ipset:
             print 'Unit'
             self.server_type = 'unit'
@@ -330,51 +361,6 @@ class SmartServer(object):
             self.server_type = 'node'
         else:
             print 'Nothing'
-    
-    def checkCmpStart(self, session_name):
-        flag = False
-        startFlag = True
-        dis_interval = 3
-        if self.server:
-            if session_name in self.server.upload_flag_map:
-                self.server.upload_flag_map[session_name]['flag'] = True
-                self.server.upload_flag_map[session_name]['time'] = datetime.now()
-            else:
-                pass
-                return
-            for sess_name, value in self.server.upload_flag_map.items():
-                if sess_name != 'total':
-                    if value['time'] < self.server.upload_flag_map['total']['time']:
-                        value = self.upload_flag_map['total']
-                    else:
-                        pass
-                    if value['flag'] is False:
-                        if (datetime.now() - value['time']).total_seconds() < dis_interval:
-                            startFlag = False
-                        else:
-                            pass
-                    else:
-                        pass
-                else:
-                    pass
-        else:
-            pass
-        if startFlag and startFlag is True:
-            if self.startCmpFlag is False:
-                self.start_lock.acquire()
-                self.startCmpFlag = True
-                flag = True
-                self.start_lock.realease()
-            else:
-                pass
-        else:
-            pass
-        return flag
-            
-        
-    def finishCmpSet(self):
-        self.server.upload_flag_map['total']['time'] = datetime.now()
-                    
             
     def stop(self):
         asyncore.close_all()
@@ -386,18 +372,21 @@ class SmartServer(object):
         
     def initData(self):
         if self.server_type in Server_dict:
-            Server_dict[self.server_type](self.server_ip,self.ip_name_map[self.server_ip])
+            self.server = \
+            Server_dict[self.server_type](self.server_ip,
+                                          self.ip_name_map[self.server_ip],
+                                          DoInithandle_dict[self.server_type])
+            self.server.initServer(DOhandles_Args_dict[self.server_type])
         else:
             print 'No Data init!'
             
 class data_server():
     dataConfs = {}
-    upload_flag_map = {'total' : {'flag' : False, 'time' : datetime.now()}}
     def __init__(self, server_ip, server_name, state = True, sockSession=None):
         self.server_ip = server_ip
         self.server_name = server_name
         self.sockSession = sockSession
-        self.db = SmartServer().db
+        self.db = DSAURServer().db
         self.state = state
         self.dis_time = None
         self.dev_data = None 
@@ -542,14 +531,14 @@ def PingIP(strIp):
     else:
         return True
     
-def doAreaInit(area_server):
-    for key, server in area_server.unit_server_map:
+def doRegionInit(region_server):
+    for key, server in region_server.unit_server_map:
         if server.state is False:
-            area_server.setUnitState(key, False)
+            region_server.setUnitState(key, False)
         else:
             pass
         
-class AreaDataServer(data_server):
+class RegionDataServer(data_server):
     def __init__(self, server_ip, server_name, handleTimer):
         data_server.__init__(self, server_ip, server_name, True)
         self.server_type = 'area'
@@ -560,10 +549,10 @@ class AreaDataServer(data_server):
         
     def setUnitState(self, unit_ip ,flag):
         self.unit_server_map[unit_ip].setState(flag)
-        unit_name = SmartServer().ip_unit_map[unit_ip]
-        for node,unit in SmartServer().node_unit_map:
+        unit_name = DSAURServer().ip_unit_map[unit_ip]
+        for node,unit in DSAURServer().node_unit_map:
             if unit == unit_name:
-                node_ip = SmartServer().ip_node_map[node]
+                node_ip = DSAURServer().ip_node_map[node]
                 self.node_server_map[node_ip].setState(flag)
             else:
                 pass
@@ -607,24 +596,18 @@ class AreaDataServer(data_server):
         else:
             pass
         
-    def initServer(self, handleData):
-        for u_ip in SmartServer().unit_ipset:
-            u_name = SmartServer().ip_name_map[u_ip]
+    def initServer(self, **args):
+        for u_ip in DSAURServer().unit_ipset:
+            u_name = DSAURServer().ip_name_map[u_ip]
             self.unit_server_map[u_ip] = data_server(u_ip, u_name, False, 
-                    AsyncSession(self.server_ip,8899,handleData,
+                    AsyncSession(self.server_ip,8899,args['handleData'],
                                  Server_Param(u_ip,u_name,'unit'),self.db))
             self.name_ip_map[u_name] = u_ip
-        for n_ip in SmartServer().node_ipset:
-            n_name = SmartServer().ip_name_map[n_ip]
+        for n_ip in DSAURServer().node_ipset:
+            n_name = DSAURServer().ip_name_map[n_ip]
             self.node_server_map[n_ip] = data_server(n_ip, n_name, False, None)
             self.name_ip_map[n_name] = n_ip
-        for server in self.unit_server_map.values():
-            for session_name in server.getDataSessions():
-                self.upload_flag_map[session_name] = {'flag' : False, 'time' : datetime.now()}
-        for server in self.node_server_map.values():
-            for session_name in server.getDataSessions():
-                self.upload_flag_map[session_name] = {'flag' : False, 'time' : datetime.now()}
-        self.timer = threading.Timer(3,self.handleTimer)
+        self.timer = threading.Timer(3,self.handleTimer,args=[self,])
         self.timer.start()
     
 def doUnitInit(unit_server):
@@ -650,7 +633,7 @@ class UnitDataServer(data_server):
         self.AreaSendData = {}
         self.transmitData = {}
         self.init_ip = self.server_ip
-        self.area_ip = SmartServer().area_ip
+        self.region = DSAURServer().region_ip
         self.handleTimer = handleTimer
         self.firstflag = True
         self.handleTask = None
@@ -662,7 +645,7 @@ class UnitDataServer(data_server):
             self.dis_time = datetime.now()
         else:
             if self.firstflag is False:
-                self.initData(self.area_ip, self.handleTask, self.handleResult)
+                self.initData(self.region, self.handleTask, self.handleResult)
 #                 程序计算开始
             if self.firstflag:
                 self.firstflag = False
@@ -715,8 +698,8 @@ class UnitDataServer(data_server):
             dataconf = self.dataConfs[ename]
             if dataconf.sever_name == self.server_name:
                 rd = data_server.getData(self, dataconf)
-            elif dataconf.sever_name in SmartServer().node_ip_map:
-                n_ip = SmartServer().node_ip_map[dataconf.sever_name]
+            elif dataconf.sever_name in DSAURServer().node_ip_map:
+                n_ip = DSAURServer().node_ip_map[dataconf.sever_name]
                 if n_ip in self.node_server_map:
                     rd = self.node_server_map[n_ip].getData(dataconf)
                 else:
@@ -741,25 +724,20 @@ class UnitDataServer(data_server):
             pass
         return rd
         
-    def initServer(self, handleTask, handleResult):
-        if PingIP(self.area_ip):
-            self.init_ip = self.area_ip
+    def initServer(self, **args):
+        if PingIP(self.region_ip):
+            self.init_ip = self.region_ip
         else:
             pass
-        self.initData(self.init_ip, handleTask, handleResult)
-        for node, unit in SmartServer().node_unit_map:
+        self.initData(self.init_ip, args['handleTask'], args['handleResult'])
+        for node, unit in DSAURServer().node_unit_map:
             if unit == self.server_name:
-                node_ip = SmartServer().name_ip_map[node]
+                node_ip = DSAURServer().name_ip_map[node]
                 self.node_server_map[node_ip] = data_server(node_ip,node,False)
                 self.node_server_map[node_ip].initData(self.init_ip)
                 self.name_ip_map[node] = node_ip
         self.__initOtherData()
-        for session_name in self.getDataSessions():
-            self.upload_flag_map[session_name] = {'flag' : False, 'time' : datetime.now()}
-        for server in self.node_server_map.values():
-            for session_name in server.getDataSessions():
-                self.upload_flag_map[session_name] = {'flag' : False, 'time' : datetime.now()}
-        self.timer = threading.Timer(3,self.handleTimer)
+        self.timer = threading.Timer(3,self.handleTimer,args=[self,])
         self.timer.start()
         
     def __initOtherData(self):
@@ -810,6 +788,7 @@ class NodeDataServer(data_server):
         self.dis_time = None
         self.unit_ip = None
         self.firstflag = True
+        self.handleData = None
         self.handleTask = None
         self.handleResult = None
         self.handleTimer = handleTimer
@@ -843,38 +822,38 @@ class NodeDataServer(data_server):
         else:
             pass
     
-    def initServer(self, handleTask, handleResult):
-        self.handleTask = handleTask
-        self.handleResult = handleResult
-        area_ip = SmartServer().area_ip
-        unit_name = SmartServer().name_ip_map[self.server_name]
-        unit_ip = SmartServer().ip_name_map[unit_name]
+    def initServer(self, **args):
+        self.handleData = args['handleData']
+        self.handleTask = args['handleTask']
+        self.handleResult = args['handleResult']
+        region_ip = DSAURServer().region_ip
+        unit_name = DSAURServer().name_ip_map[self.server_name]
+        unit_ip = DSAURServer().ip_name_map[unit_name]
         self.unit_ip = unit_ip
         if PingIP(unit_ip):
-            if PingIP(area_ip):
-                self.init_ip = area_ip
+            if PingIP(region_ip):
+                self.init_ip = region_ip
             else:
                 self.init_ip = unit_ip
         else:
             pass
-        self.initData(self.init_ip, handleTask, handleResult)
-        self.upload_Session = AsyncSession(unit_ip,8899,handleData,
+        self.initData(self.init_ip, self.handleTask, self.handleResult)
+        self.upload_Session = AsyncSession(unit_ip,8899,self.handleData,
                                  Server_Param(unit_name,unit_ip,'unit'),self.db)
-        for session_name in self.getDataSessions():
-            self.upload_flag_map[session_name] = {'flag' : False, 'time' : datetime.now()}
-        self.timer = threading.Timer(3,self.handleTimer)
+        self.timer = threading.Timer(3,self.handleTimer,args=[self,])
         self.timer.start()
         
 Server_dict = {
-               'area'  :  AreaDataServer,
+               'region'  :  RegionDataServer,
                'unit'  :  UnitDataServer,
                'node' : NodeDataServer,
                }
-        
-def handleData(client):
-    buf = client.recv(100)
-    print buf.strip()
-    client.sendData("yang")
+
+DoInithandle_dict = {
+                 'region'  :  doRegionInit,
+                 'unit'  :  doUnitInit,
+                 'node' : doNodeInit,
+                 }
     
 global FLAG
 FLAG = False
@@ -888,12 +867,12 @@ def handleConnect(pair):
         else:
             FLAG = False
         if FLAG:
-            SmartServer().stop()
+            DSAURServer().stop()
 #             time.sleep(2)
-            SmartServer().startService(handleConnect)
+            DSAURServer().startService(handleConnect)
             print 'restart'
         else:
-            SmartServer().stop()
+            DSAURServer().stop()
             print "start"
         return
     except Exception as e:
@@ -902,20 +881,21 @@ def handleConnect(pair):
     sock, addr = pair
     print addr
     sockSession = None
-    if addr[0] == SmartServer().area_ip:
+    if addr[0] == DSAURServer().region_ip:
         sockSession = AsyncClient(sock,handleData,('area',addr[0],'area'))
-        SmartServer().server.setUploadSession(sockSession)
-    elif addr[0] in SmartServer().ip_node_map:
-        sockSession = AsyncClient(sock,handleData,(SmartServer().ip_node_map[addr[0]],addr[0],'node'))
-        SmartServer().server.node_server_map[addr[0]].sockSession = sockSession
-        SmartServer().server.node_server_map[addr[0]].setState(True)
+        DSAURServer().server.setUploadSession(sockSession)
+    elif addr[0] in DSAURServer().ip_node_map:
+        sockSession = AsyncClient(sock,handleData,(DSAURServer().ip_node_map[addr[0]],addr[0],'node'))
+        DSAURServer().server.node_server_map[addr[0]].sockSession = sockSession
+        DSAURServer().server.node_server_map[addr[0]].setState(True)
     else:
         sockSession = AsyncClient(sock,handleData)
+        DSAURServer.client_map[id(sockSession)] = sockSession
     print sockSession
         
 if __name__ == "__main__" :
-    SmartServer().Init('172.16.1.16', 8899)
-    SmartServer().startService(handleConnect)
+    DSAURServer().Init('172.16.1.16', 8899)
+    DSAURServer().startService(handleConnect)
 #     server = AsyncServer('172.16.1.16',8899,handleConnect)
 #     server.run()
 #     asyncore.loop()
