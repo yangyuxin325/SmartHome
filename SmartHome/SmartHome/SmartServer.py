@@ -100,7 +100,7 @@ def doClose(session):
             deleteClient(session)
     elif DSAURServer().server_type == 'unit':
         if c_ip == DSAURServer().server.region_ip:
-            DSAURServer().server.setUploadSession(None)
+            DSAURServer().server.setUploadSession(None,False)
         elif c_ip in DSAURServer().server.node_server_map:
             DSAURServer().server.node_server_map[c_ip].setState(False)
         else:
@@ -123,6 +123,7 @@ class AsyncSession(asyncore.dispatcher_with_send):
         if db is not None:
             self.sqlConnection = torndb.Connection(db.addr, db.name, user=db.user, password=db.password)
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.connect(self.addr)
         self.handleData = handleData
         self.timer = threading.Timer(3,self.handle_timer)
         
@@ -1075,7 +1076,7 @@ def handleConnect(pair):
     if DSAURServer().server_type == 'unit':
         if addr[0] == DSAURServer().region_ip:
             sockSession = AsyncClient(sock,handleData,Server_Param('region',addr[0],'region'))
-            DSAURServer().server.setUploadSession(sockSession)
+            DSAURServer().server.setUploadSession(sockSession,True)
         elif addr[0] in DSAURServer().node_ipset:
             sockSession = AsyncClient(sock,handleData,(DSAURServer().ip_node_map[addr[0]],addr[0],'node'))
             DSAURServer().server.node_server_map[addr[0]].sockSession = sockSession
