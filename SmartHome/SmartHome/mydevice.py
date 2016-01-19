@@ -135,10 +135,10 @@ class device():
             self.setDisConnect(False)
                 
     def setDataValue(self, conf_name ,value):
-        if conf_name in self.data_dict:
+        if conf_name in self.data_dict and self.data_dict[conf_name]:
             self.data_dict[conf_name].setValue(value)
             if conf_name in self.linkset:
-                for k,v in self.data_linkpara:
+                for k,v in self.data_linkpara.items():
                     if v == conf_name:
                         self.data_dict[k].setValue(value)
             else:

@@ -10,6 +10,8 @@ import multiprocessing
 import threading
 from greenlet import greenlet
 from datetime import datetime
+from com_handlers import doDataProcess
+from com_handlers import doSessionState
 
 def Sum_Right(array):
     check_sum = 0
@@ -43,6 +45,7 @@ class data_session():
         self.com = None
         self.useflag = False
         self.dis_time = None
+        self.periods = None
         
     def getDataItem(self, dev_name, conf_name):
         data = self.getData(dev_name, conf_name)
@@ -145,6 +148,7 @@ class data_session():
             pass
         if self.isOpen() :
             self.alive = True
+            doSessionState(self,self.alive)
             th = threading.Thread(target=self.__doTask)
             th.start()
             self.sendGR = greenlet(self.__sendData)
@@ -180,9 +184,11 @@ class data_session():
                     data = cmd["cmd"]
                 else:
                     print "there is not cmds in queue!"
-                    self.closeSerial()
-                    self.start()
-                    return
+                    time.sleep(1)
+                    if len(self.errCmdList) == 0:
+                        self.closeSerial()
+                        self.start()
+                        return
                 self.__cmd = cmd
                 if data:
                     self.com.write(data.decode('hex'))
@@ -198,6 +204,7 @@ class data_session():
     def closeSerial(self):
         if(type(self.com) != type(None)):
             self.alive = False
+            doSessionState(self,self.alive)
             self.dis_time = datetime.now()
             self.com.close()
         else:
@@ -205,9 +212,10 @@ class data_session():
                 
     def __NoSendData(self, cmd):
         if cmd is not None and cmd["dev_id"] == -1 :
-            periods = time.time() - self.__startTime
-            print "Cycle Period is", periods,"s."
+            self.periods = time.time() - self.__startTime
+#             print "Cycle Period is", self.periods,"s."
             self.__startTime = time.time()
+            doDataProcess(self)
             self.cycleCmdList.append(self.__cmd)
             if len(self.cycleCmdList) == 1:
                 time.sleep(10)

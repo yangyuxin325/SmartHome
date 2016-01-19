@@ -7,6 +7,7 @@ Created on 2015年12月21日
 '''
 import torndb
 from SmartHome import mydevice
+from decimal import *
 
 class DB_conf():
     def __init__(self, addr, name, user, password):
@@ -67,17 +68,23 @@ class deviceSet():
                     sqlString = 'select min_variation, min_val, max_val, dis_interval from DataConstraint where data_ename = %s'
                     res = sqlConnection.query(sqlString, data_conf['data_ename'])
                     from basedata import data_constraint
-                    dataconstraint = data_constraint(res[0]['min_variation'],res[0]['min_val'],res[0]['max_val'],res[0]['dis_interval'])
+                    dataconstraint = data_constraint(float(res[0]['min_variation']),\
+                    float(res[0]['min_val']) if res[0]['min_val'] else res[0]['min_val'],\
+                    float(res[0]['max_val']) if res[0]['max_val'] else res[0]['max_val'],\
+                                                     res[0]['dis_interval'])
                     sqlString = 'select value, error_flag, time, dis_flag, dis_time from DataInfo where data_ename = %s'
                     res = sqlConnection.query(sqlString, data_conf['data_ename'])
                     from basedata import basic_data
-                    data = basic_data(res[0]['value'],res[0]['error_flag'],res[0]['time'],res[0]['dis_flag'],res[0]['dis_time'])
+                    data = basic_data(data_conf['data_ename'],float(res[0]['value']),res[0]['error_flag'],res[0]['time'],res[0]['dis_flag'],res[0]['dis_time'])
                     from basedata import data_param
                     if data_conf['write_flag']:
-                        sqlString = 'select value, updatetime where data_ename = %s'
+                        sqlString = 'select value, updatetime from WDataInfo where data_ename = %s'
                         res = sqlConnection.query(sqlString, data_conf['data_ename'])
-                        self.dev_dict[device['dev_id']].addData(data_conf['conf_name'],
+                        if len(res):
+                            self.dev_dict[device['dev_id']].addData(data_conf['conf_name'],
                                 data_param(data,dataconstraint,res[0]['value'],res[0]['updatetime']))
+                        else:
+                            pass
                     else:
                         self.dev_dict[device['dev_id']].addData(data_conf['conf_name'],data_param(data,dataconstraint))
                     if data_conf['link_flag']:

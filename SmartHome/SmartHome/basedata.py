@@ -38,7 +38,8 @@ class data_constraint():
         return not (self == other)
         
 class basic_data():
-    def __init__(self, value=None, error_flag=False, time=None, dis_flag=True, dis_time=None):
+    def __init__(self, ename, value=None, error_flag=False, time=None, dis_flag=True, dis_time=None):
+        self.ename = ename
         self.value = value
         self.error_flag = error_flag
         self.time = time
@@ -55,6 +56,10 @@ class basic_data():
         
     def __ne__(self,other):
         return not (self == other)
+    
+    def __str__(self):
+        return '{ename : %s, value : %s, error_flag : %s, time : %s, dis_flag : %s, dis_time : %s}' \
+            (self.ename,str(self.value),str(self.error_flag),str(self.time),str(self.dis_flag),str(self.dis_time))
         
 class data_param():
     def __init__(self, data, constraint, write_value=None, write_time=None, minute=None):
