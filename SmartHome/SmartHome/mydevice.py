@@ -1142,7 +1142,7 @@ class ZMA194E(device):
                             RMSIC = value
                             self.setDataValue('RMSIC', value)
                         elif i == 12:
-                            self._setDataValue('Psum', value)
+                            self.setDataValue('Psum', value)
                 import math                            
                 Udiff = max(math.fabs(RMSUA - RMSUB), math.fabs(RMSUA - RMSUC), math.fabs(RMSUB - RMSUC))
                 Idiff = max(math.fabs(RMSIA - RMSIB), math.fabs(RMSIA - RMSIC), math.fabs(RMSIB - RMSIC))
