@@ -447,7 +447,7 @@ class stc_201(device):
             if self.SUPPORTED_INSTRUCTIONS[key][1] > 0 :
                 for num in range(self.SUPPORTED_INSTRUCTIONS[key][1]):
                     str_name = str_fisrt + str(num+1)
-                    self.data_dict.update({str_name : None})
+                    self.datadict.update({str_name : None})
         self._Algorithm_dict = {}
         
         self._Parsedict = {
