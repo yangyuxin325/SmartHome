@@ -23,6 +23,9 @@ def get_ip_address( ifname):
                                         )[20:24])
 
 if __name__ == "__main__" :
-    SmartServer.DSAURServer().Init(get_ip_address('eth0'), 8899)
-    InitSerialNo(SmartServer.DSAURServer().db)
-    SmartServer.DSAURServer().startService(SmartServer.handleConnect)
+    try:
+        SmartServer.DSAURServer().Init(get_ip_address('eth0'), 8899)
+        InitSerialNo(SmartServer.DSAURServer().db)
+        SmartServer.DSAURServer().startService(SmartServer.handleConnect)
+    except Exception as e:
+        print e

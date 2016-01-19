@@ -20,18 +20,42 @@ from copy import deepcopy
 from decimal import *
 import com_handlers
 import struct
+import json
 
 # 被动socket数据处理
 def handleData(sockSession):
-    buf = sockSession.recv(100)
-    print buf.strip()
-    sockSession.sendData("yang")
+    buf1 = sockSession.recv(16)
+    if len(buf1) == 16 :
+        head = struct.unpack('!4i', buf1)
+        if head[3] > 0 :
+            buf2 = sockSession.recv(head[3])
+            body = json.loads(buf2)
+            if body['status_code'] == 255:
+                DSAURServer().SendUploadData(buf1+buf2)
+            else:
+                pass
+        else:
+            pass
+    else:
+        print buf1.strip()
     
 # 主动socket数据处理
 def handleDataAct(sockSession):
-    buf = sockSession.recv(100)
-    print buf.strip()
-    sockSession.sendData("yang")
+    buf1 = sockSession.recv(16)
+    if len(buf1) == 16 :
+        head = struct.unpack('!4i', buf1)
+        if head[3] > 0 :
+            buf2 = sockSession.recv(head[3])
+            body = json.loads(buf2)
+            print body
+            if body['status_code'] == 255:
+                DSAURServer().SendUploadData(buf1+buf2)
+            else:
+                pass
+        else:
+            pass
+    else:
+        print buf1.strip()
 
 # data_session中的任务处理句柄
 def handleTask(data_sess, data):
@@ -55,7 +79,7 @@ class Server_Param():
         
 def doConnect(session):
     c_ip = session.addr[0]
-    if DSAURServer().server_type == 'area':
+    if DSAURServer().server_type == 'region':
         if c_ip in DSAURServer().server.unit_server_map:
             DSAURServer().server.unit_server_map[c_ip].setState(True)
         else:
@@ -69,7 +93,7 @@ def deleteClient(client):
         
 def doClose(session):
     c_ip = session.addr[0]
-    if DSAURServer().server_type == 'area':
+    if DSAURServer().server_type == 'region':
         if c_ip in DSAURServer().server.unit_server_map:
             DSAURServer().server.unit_server_map[c_ip].setState(False)
         else:
@@ -103,18 +127,24 @@ class AsyncSession(asyncore.dispatcher_with_send):
         self.timer = threading.Timer(3,self.handle_timer)
         
     def handle_timer(self):
-        self.send(struct.pack('!4i', 0, 0, 0, 0))
+        if self.connected:
+            self.send(struct.pack('!4i', 0, 0, 0, 0))
+        else:
+            pass
         self.timer = threading.Timer(3,self.handle_timer)
         self.timer.start()
         
     def handle_read(self):
         asyncore.dispatcher_with_send.handle_read(self)
         self.timer.cancel()
-        if self.handleData:
-            self.handleData(self)
+        if self.connected:
+            if self.handleData:
+                self.handleData(self)
+            else:
+                buf = self.recv(100)
+                print buf.strip()
         else:
-            buf = self.recv(100)
-            print buf.strip()
+            pass
         self.timer = threading.Timer(3,self.handle_timer)
         self.timer.start()
         
@@ -122,13 +152,13 @@ class AsyncSession(asyncore.dispatcher_with_send):
         asyncore.dispatcher_with_send.handle_connect(self)
         self.timer = threading.Timer(3,self.handle_timer)
         self.timer.start()
-        doConnect(self)
+#         doConnect(self)
         
     def handle_close(self):
         asyncore.dispatcher_with_send.handle_close(self)
-        self.close()
         try:
-            doClose(self)
+#             doClose(self)
+            time.sleep(1)
             self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
             self.connect(self.addr)
         except Exception as e:
@@ -136,7 +166,10 @@ class AsyncSession(asyncore.dispatcher_with_send):
         
     def sendData(self,data):
         self.timer.cancel()
-        self.send(data)
+        if self.connected:
+            self.send(data)
+        else:
+            pass
 
 class AsyncClient(asyncore.dispatcher_with_send):
     def __init__(self, sock, handleData, server_para=None, db = None):
@@ -160,22 +193,31 @@ class AsyncClient(asyncore.dispatcher_with_send):
     def handle_read(self):
         asyncore.dispatcher_with_send.handle_read(self)
         self.timer.cancel()
-        if self.handleData:
-            self.handleData(self)
+        if self.connected:
+            if self.handleData:
+                self.handleData(self)
+            else:
+                buf = self.recv(100)
+                print buf.strip()
         else:
-            buf = self.recv(100)
-            print buf.strip()
+            pass
         self.timer = threading.Timer(3,self.handle_timer)
         self.timer.start()
         
     def handle_timer(self):
-        self.send(struct.pack('!4i', 0, 0, 0, 0))
+        if self.connected:
+            self.send(struct.pack('!4i', 0, 0, 0, 0))
+        else:
+            pass
         self.timer = threading.Timer(3,self.handle_timer)
         self.timer.start()
         
     def sendData(self,data):
         self.timer.cancel()
-        self.send(data)
+        if self.connected:
+            self.send(data)
+        else:
+            pass
         
     def handle_close(self):
         asyncore.dispatcher_with_send.handle_close(self)
@@ -387,7 +429,7 @@ class DSAURServer(object):
         for res in ress:
             self.name_ip_map[res['server_name']] = res['server_ip']
             self.ip_name_map[res['server_ip']] = res['server_name']
-            if res['server_type'] == 'area':
+            if res['server_type'] == 'region':
                 self.region_ip = res['server_ip']
             elif res['server_type'] == 'unit':
                 self.unit_ipset.add(res['server_ip'])
@@ -414,9 +456,9 @@ class DSAURServer(object):
         
     def startService(self,handleConnect):
         self.Service = AsyncServer(self.server_ip,self.port,handleConnect)
+        self.Service.run()
         self.initData()
         self.server.startWork()
-        self.Service.run()
         asyncore.loop()
         
     def initData(self):
@@ -454,14 +496,22 @@ class data_server():
         self.handleResult = None
         
     def startWork(self):
-        self.dev_data.startPatrol()
+        if self.dev_data:
+            self.dev_data.startPatrol()
+        else:
+            pass
         
     def stopWork(self):
-        self.dev_data.stopPatrol()
+        if self.dev_data:
+            self.dev_data.stopPatrol()
+        else:
+            pass
         
     def getDataSession(self, session_name):
         if session_name in self.dev_data.session_map:
             return self.dev_data.session_map[session_name]
+        else:
+            pass
         
     def getDataSessionNames(self):
         return self.dev_data.session_map.keys()
@@ -600,7 +650,7 @@ def PingIP(strIp):
         return True
     
 def doRegionInit(region_server):
-    for key, server in region_server.unit_server_map:
+    for key, server in region_server.unit_server_map.items():
         if server.state is False:
             region_server.setUnitState(key, False)
         else:
@@ -612,7 +662,7 @@ class RegionDataServer(data_server):
     wait_interval = 3
     def __init__(self, server_ip, server_name, handleTimer):
         data_server.__init__(self, server_ip, server_name, True)
-        self.server_type = 'area'
+        self.server_type = 'region'
         self.unit_server_map = {}
         self.node_server_map = {}
         self.name_ip_map = {}
@@ -634,10 +684,10 @@ class RegionDataServer(data_server):
         
     def setUnitState(self, unit_ip ,flag):
         self.unit_server_map[unit_ip].setState(flag)
-        unit_name = DSAURServer().ip_unit_map[unit_ip]
+        unit_name = DSAURServer().ip_name_map[unit_ip]
         for node,unit in DSAURServer().node_unit_map:
             if unit == unit_name:
-                node_ip = DSAURServer().ip_node_map[node]
+                node_ip = DSAURServer().ip_name_map[node]
                 self.node_server_map[node_ip].setState(flag)
             else:
                 pass
@@ -686,7 +736,7 @@ class RegionDataServer(data_server):
             u_name = DSAURServer().ip_name_map[u_ip]
             self.unitfinishflags[u_name] = {'flag' : False, 'time' : datetime.now()}
             self.unit_server_map[u_ip] = data_server(u_ip, u_name, False, 
-                    AsyncSession(self.server_ip,8899,args['handleData'],
+                    AsyncSession(u_ip,8899,args['handleData'],
                                  Server_Param(u_ip,u_name,'unit'),self.db))
             self.name_ip_map[u_name] = u_ip
         for n_ip in DSAURServer().node_ipset:
@@ -827,7 +877,7 @@ class UnitDataServer(data_server):
                 else:
                     pass
             else:
-                if dataconf.sever_name == 'area':
+                if dataconf.sever_name == 'region':
                     if ename in self.AreaSendData:
                         rd = self.AreaSendData[ename].getData()
                     else:
@@ -918,7 +968,7 @@ class UnitDataServer(data_server):
                     float(sets[0]['max_val']) if sets[0]['max_val'] else sets[0]['max_val'],\
                                                      sets[0]['dis_interval'])
             data = basic_data(sets[0]['data_ename'],float(sets[0]['value']),sets[0]['error_flag'],sets[0]['time'],sets[0]['dis_flag'],sets[0]['dis_time'])
-            if res['server_name'] == 'area':
+            if res['server_name'] == 'region':
                 self.AreaSendData[res['data_ename']] = data_param(data,dataconstraint)
             else:
                 self.transmitData[res['data_ename']] = data_param(data,dataconstraint)
@@ -1022,13 +1072,17 @@ def handleConnect(pair):
     sock, addr = pair
     print addr
     sockSession = None
-    if addr[0] == DSAURServer().region_ip:
-        sockSession = AsyncClient(sock,handleData,('area',addr[0],'area'))
-        DSAURServer().server.setUploadSession(sockSession)
-    elif addr[0] in DSAURServer().node_ipset:
-        sockSession = AsyncClient(sock,handleData,(DSAURServer().ip_node_map[addr[0]],addr[0],'node'))
-        DSAURServer().server.node_server_map[addr[0]].sockSession = sockSession
-        DSAURServer().server.node_server_map[addr[0]].setState(True)
+    if DSAURServer().server_type == 'unit':
+        if addr[0] == DSAURServer().region_ip:
+            sockSession = AsyncClient(sock,handleData,Server_Param('region',addr[0],'region'))
+            DSAURServer().server.setUploadSession(sockSession)
+        elif addr[0] in DSAURServer().node_ipset:
+            sockSession = AsyncClient(sock,handleData,(DSAURServer().ip_node_map[addr[0]],addr[0],'node'))
+            DSAURServer().server.node_server_map[addr[0]].sockSession = sockSession
+            DSAURServer().server.node_server_map[addr[0]].setState(True)
+        else:
+            sockSession = AsyncClient(sock,handleData)
+            DSAURServer.client_map[id(sockSession)] = sockSession
     else:
         sockSession = AsyncClient(sock,handleData)
         DSAURServer.client_map[id(sockSession)] = sockSession
