@@ -25,7 +25,7 @@ import struct
 def handleData(sockSession):
     buf = sockSession.recv(100)
     print buf.strip()
-    sockSession.sendData("yang")
+#     sockSession.sendData("yang")
     
 # 主动socket数据处理
 def handleDataAct(sockSession):
@@ -1023,8 +1023,8 @@ def handleConnect(pair):
     print addr
     sockSession = None
     if addr[0] == DSAURServer().region_ip:
-        sockSession = AsyncClient(sock,handleData,('area',addr[0],'area'))
-        DSAURServer().server.setUploadSession(sockSession)
+        sockSession = AsyncClient(sock,handleData,Server_Param('area',addr[0],'area'))
+        DSAURServer().server.setUploadSession(sockSession,True)
     elif addr[0] in DSAURServer().node_ipset:
         sockSession = AsyncClient(sock,handleData,(DSAURServer().ip_node_map[addr[0]],addr[0],'node'))
         DSAURServer().server.node_server_map[addr[0]].sockSession = sockSession
