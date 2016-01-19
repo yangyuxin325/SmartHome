@@ -75,7 +75,7 @@ class deviceSet():
                     sqlString = 'select value, error_flag, time, dis_flag, dis_time from DataInfo where data_ename = %s'
                     res = sqlConnection.query(sqlString, data_conf['data_ename'])
                     from basedata import basic_data
-                    data = basic_data(float(res[0]['value']),res[0]['error_flag'],res[0]['time'],res[0]['dis_flag'],res[0]['dis_time'])
+                    data = basic_data(data_conf['data_ename'],float(res[0]['value']),res[0]['error_flag'],res[0]['time'],res[0]['dis_flag'],res[0]['dis_time'])
                     from basedata import data_param
                     if data_conf['write_flag']:
                         sqlString = 'select value, updatetime from WDataInfo where data_ename = %s'

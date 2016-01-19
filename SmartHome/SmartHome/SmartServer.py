@@ -18,6 +18,8 @@ from basedata import data_constraint
 from basedata import data_param
 from copy import deepcopy
 from decimal import *
+import com_handlers
+import struct
 
 # 被动socket数据处理
 def handleData(sockSession):
@@ -33,11 +35,11 @@ def handleDataAct(sockSession):
 
 # data_session中的任务处理句柄
 def handleTask(data_sess, data):
-    pass
+    com_handlers.MsgDict[data['MsgType']](data_sess,data)
 
 # MyThread中的结果处理句柄
 def handleResult(result_data):
-    pass
+    result_data['handle'](result_data['data'])
 
 DOhandles_Args_dict = {
                        'region' : {'handleData' : handleDataAct},
@@ -101,7 +103,7 @@ class AsyncSession(asyncore.dispatcher_with_send):
         self.timer = threading.Timer(3,self.handle_timer)
         
     def handle_timer(self):
-        self.send('1234567890\n')
+        self.send(struct.pack('!4i', 0, 0, 0, 0))
         self.timer = threading.Timer(3,self.handle_timer)
         self.timer.start()
         
@@ -167,7 +169,7 @@ class AsyncClient(asyncore.dispatcher_with_send):
         self.timer.start()
         
     def handle_timer(self):
-        self.send('1234567890\n')
+        self.send(struct.pack('!4i', 0, 0, 0, 0))
         self.timer = threading.Timer(3,self.handle_timer)
         self.timer.start()
         
@@ -240,6 +242,25 @@ class sessionSet():
     def setData(self, session_name, dev_name, conf_name, data):
         if session_name in self.session_map:
             self.session_map[session_name].setData(dev_name,conf_name,data)
+            
+    def stopSession(self, session_name):
+        try:
+            if session_name in self.process_map :
+                if not self.session_map[session_name].alive:
+                    del self.process_map[session_name]
+                else :
+                    self.session_map[session_name].putTaskQueue({'MsgType' : 1, 'data' : {'state' : 0}})
+                    while self.dataSession_map[session_name].alive():
+                        time.sleep(3)
+                    del self.process_map[session_name]
+                if session_name in self.thread_map :
+                    if self.thread_map[session_name].is_alive:
+                        self.thread_map[session_name].stop()
+                    del self.thread_map[session_name]
+                else:
+                    pass
+        except Exception as e:
+            print "startSession Error : " , e
         
     def startSession(self, session_name):
         try:
@@ -247,7 +268,7 @@ class sessionSet():
                 if not self.session_map[session_name].alive:
                     del self.process_map[session_name]
                 else :
-                    self.session_map[session_name].putTaskQueue({'MsgType' : 3, 'data' : {'state' : 0}})
+                    self.session_map[session_name].putTaskQueue({'MsgType' : 1, 'data' : {'state' : 0}})
                     while self.dataSession_map[session_name].alive():
                         time.sleep(3)
                     del self.process_map[session_name]
@@ -277,6 +298,10 @@ class sessionSet():
             th = MyThread(self.session_map[session_name],self.handleResult)
             self.thread_map[session_name] = th
             th.start()
+            
+    def stopPatrol(self):
+        for session_name in self.session_map:
+            self.stopSession(session_name)
         
     def init(self, db):
         if db is not None:
@@ -287,6 +312,7 @@ class sessionSet():
             from data_session import data_session
             for session in sessions:
                 devSet = deviceSet(session['session_name'], db)
+                devSet.initData()
                 self.session_map[session['session_name']] = data_session(self.server_name,
                                                                          session['session_name'],
                                                                          session['session_id'],
@@ -307,11 +333,31 @@ class DSAURServer(object):
     cache_data = {}
     cache_mutex =  threading.Lock()
     client_map = {}
+    logic_start_flag = False
+    logic_start_mutex = threading.Lock()
         
     def __new__(cls, *args, **kwarg):
         if not cls.instance:
             cls.instance = super(DSAURServer, cls).__new__(cls, *args, **kwarg)
         return cls.instance
+    
+    def getLogicStartFlag(self):
+        return self.logic_start_flag
+        
+    def doFinish(self):
+        self.server.finishCmpSet()
+        self.logic_start_mutex.acquire()
+        self.logic_start_flag = False
+        self.logic_start_mutex.release()
+    
+    def setFinishFlag(self, name):
+        flag = self.server.checkStartFlag(name)
+        if self.logic_start_flag != flag:
+            self.logic_start_mutex.acquire()
+            self.logic_start_flag = flag
+            self.logic_start_mutex.release()
+        else:
+            pass
     
     @classmethod
     def putDataToCache(self, ename, data):
@@ -363,10 +409,13 @@ class DSAURServer(object):
             print 'Nothing'
             
     def stop(self):
+        self.server.stopWork()
         asyncore.close_all()
         
     def startService(self,handleConnect):
         self.Service = AsyncServer(self.server_ip,self.port,handleConnect)
+        self.initData()
+        self.server.startWork()
         self.Service.run()
         asyncore.loop()
         
@@ -376,9 +425,18 @@ class DSAURServer(object):
             Server_dict[self.server_type](self.server_ip,
                                           self.ip_name_map[self.server_ip],
                                           DoInithandle_dict[self.server_type])
-            self.server.initServer(DOhandles_Args_dict[self.server_type])
+            self.server.initServer(**DOhandles_Args_dict[self.server_type])
         else:
             print 'No Data init!'
+            
+    def SendUploadData(self,data):
+        if self.server.upload_Session is not None:
+            self.server.upload_Session.sendData(data)
+        for client in self.client_map.values():
+            client.sendData(data)
+            
+    def getDataSession(self, session_name):
+        return self.server.getDataSession(session_name)
             
 class data_server():
     dataConfs = {}
@@ -395,7 +453,17 @@ class data_server():
         self.handleTask = None
         self.handleResult = None
         
-    def getDataSessions(self):
+    def startWork(self):
+        self.dev_data.startPatrol()
+        
+    def stopWork(self):
+        self.dev_data.stopPatrol()
+        
+    def getDataSession(self, session_name):
+        if session_name in self.dev_data.session_map:
+            return self.dev_data.session_map[session_name]
+        
+    def getDataSessionNames(self):
         return self.dev_data.session_map.keys()
         
     def setState(self, flag):
@@ -499,11 +567,11 @@ class data_server():
             DataInfo.data_ename = DataType.data_ename and DataType.server_name = %s \
             and DataType.data_type = %s",self.server_name,k)
             for res in ress:
-                dataconstraint = data_constraint(float(res[0]['min_variation']),\
-                float(res[0]['min_val']) if res[0]['min_val'] else res[0]['min_val'],\
-                float(res[0]['max_val']) if res[0]['max_val'] else res[0]['max_val'],\
-                                                     res[0]['dis_interval'])
-                data = basic_data(float(res['value']),res['error_flag'],res['time'],res['dis_flag'],res['dis_time'])
+                dataconstraint = data_constraint(float(res['min_variation']),\
+                float(res['min_val']) if res['min_val'] else res['min_val'],\
+                float(res['max_val']) if res['max_val'] else res['max_val'],\
+                                                     res['dis_interval'])
+                data = basic_data(res['data_ename'],float(res['value']),res['error_flag'],res['time'],res['dis_flag'],res['dis_time'])
                 self.udev_data[res['data_type']][res['data_ename']] = data_param(data,dataconstraint)
         sqlConnection.close()
         
@@ -514,7 +582,7 @@ class data_server():
         ress = sqlConnection.query("select data_ename,data_cname,data_type from DataType where data_type is not NULL")
         for res in ress:
             self.dataConfs[res['data_ename']] = data_conf(res['data_ename'],res['data_cname'],self.server_name,res['data_type'])
-        sqlConnection.query('select DataType.data_ename,DataType.data_cname,DataType.conf_name, \
+        ress = sqlConnection.query('select DataType.data_ename,DataType.data_cname,DataType.conf_name, \
         Device.dev_name, Device.session_name from DataType  inner join Device on \
         DataType.dev_name = Device.dev_name and DataType.server_name  = %s',self.server_name)
         for res in ress:
@@ -539,6 +607,9 @@ def doRegionInit(region_server):
             pass
         
 class RegionDataServer(data_server):
+    total_distime = datetime.min
+    unitfinishflags = {}
+    wait_interval = 3
     def __init__(self, server_ip, server_name, handleTimer):
         data_server.__init__(self, server_ip, server_name, True)
         self.server_type = 'area'
@@ -546,6 +617,20 @@ class RegionDataServer(data_server):
         self.node_server_map = {}
         self.name_ip_map = {}
         self.handleTimer = handleTimer
+        self.upload_Session = None
+        
+    def getDataSession(self, session_name):
+        data_sess = self.getDataSession(session_name)
+        if data_sess:
+            return data_sess
+        for ser in self.unit_server_map.values():
+            data_sess = ser.getDataSession(session_name)
+            if data_sess:
+                return data_sess
+        for ser in self.node_server_map.values():
+            data_sess = ser.getDataSession(session_name)
+            if data_sess:
+                return data_sess
         
     def setUnitState(self, unit_ip ,flag):
         self.unit_server_map[unit_ip].setState(flag)
@@ -599,6 +684,7 @@ class RegionDataServer(data_server):
     def initServer(self, **args):
         for u_ip in DSAURServer().unit_ipset:
             u_name = DSAURServer().ip_name_map[u_ip]
+            self.unitfinishflags[u_name] = {'flag' : False, 'time' : datetime.now()}
             self.unit_server_map[u_ip] = data_server(u_ip, u_name, False, 
                     AsyncSession(self.server_ip,8899,args['handleData'],
                                  Server_Param(u_ip,u_name,'unit'),self.db))
@@ -609,6 +695,30 @@ class RegionDataServer(data_server):
             self.name_ip_map[n_name] = n_ip
         self.timer = threading.Timer(3,self.handleTimer,args=[self,])
         self.timer.start()
+        
+    def finishCmpSet(self):
+        self.total_distime = datetime.now()
+        
+    def checkStartFlag(self, unit_name):
+        flag = True
+        dis_time = self.total_distime
+        if unit_name in self.sessfinishflags:
+            self.unitfinishflags[unit_name] = {'flag' : True, 'time' : datetime.now()}
+        else:
+            pass
+        for item in self.unitfinishflags.items():
+            if item['time'] > dis_time:
+                if item['flag'] is False:
+                    if (datetime.now() - item['time']).total_seconds() > self.wait_interval:
+                        flag = False
+                        break
+                else:
+                    pass
+            else:
+                if (datetime.now() - dis_time).total_seconds() > self.wait_interval:
+                    flag = False
+                    break
+        return flag
     
 def doUnitInit(unit_server):
     for key,server in unit_server.node_server_map:
@@ -623,6 +733,9 @@ def doUnitInit(unit_server):
             
 
 class UnitDataServer(data_server):
+    total_distime = datetime.min
+    sessfinishflags = {}
+    wait_interval = 3
     def __init__(self, server_ip, server_name, handleTimer):
         data_server.__init__(self, server_ip, server_name, True)
         self.server_type = 'unit'
@@ -633,11 +746,20 @@ class UnitDataServer(data_server):
         self.AreaSendData = {}
         self.transmitData = {}
         self.init_ip = self.server_ip
-        self.region = DSAURServer().region_ip
+        self.region_ip = DSAURServer().region_ip
         self.handleTimer = handleTimer
         self.firstflag = True
         self.handleTask = None
         self.handleResult = None
+        
+    def getDataSession(self, session_name):
+        data_sess = data_server.getDataSession(self,session_name)
+        if data_sess:
+            return data_sess
+        for ser in self.node_server_map.values():
+            data_sess = ser.getDataSession(session_name)
+            if data_sess:
+                return data_sess
         
     def setUploadSession(self, session, flag):
         self.upload_Session = session
@@ -737,8 +859,37 @@ class UnitDataServer(data_server):
                 self.node_server_map[node_ip].initData(self.init_ip)
                 self.name_ip_map[node] = node_ip
         self.__initOtherData()
+        for sess_name in self.getDataSessionNames():
+            self.sessfinishflags[sess_name] = {'flag' : False, 'time' : datetime.now()}
+        for node_server in self.node_server_map.values():
+            for sess_name in node_server.getDataSessionNames():
+                self.sessfinishflags[sess_name] = {'flag' : False, 'time' : datetime.now()}
         self.timer = threading.Timer(3,self.handleTimer,args=[self,])
         self.timer.start()
+        
+    def finishCmpSet(self):
+        self.total_distime = datetime.now()
+        
+    def checkStartFlag(self, sess_name):
+        flag = True
+        dis_time = self.total_distime
+        if sess_name in self.sessfinishflags:
+            self.sessfinishflags[sess_name] = {'flag' : True, 'time' : datetime.now()}
+        else:
+            pass
+        for item in self.sessfinishflags.items():
+            if item['time'] > dis_time:
+                if item['flag'] is False:
+                    if (datetime.now() - item['time']).total_seconds() > self.wait_interval:
+                        flag = False
+                        break
+                else:
+                    pass
+            else:
+                if (datetime.now() - dis_time).total_seconds() > self.wait_interval:
+                    flag = False
+                    break
+        return flag
         
     def __initOtherData(self):
         db = self.db
@@ -766,7 +917,7 @@ class UnitDataServer(data_server):
                     float(sets[0]['min_val']) if sets[0]['min_val'] else sets[0]['min_val'],\
                     float(sets[0]['max_val']) if sets[0]['max_val'] else sets[0]['max_val'],\
                                                      sets[0]['dis_interval'])
-            data = basic_data(float(sets[0]['value']),sets[0]['error_flag'],sets[0]['time'],sets[0]['dis_flag'],sets[0]['dis_time'])
+            data = basic_data(sets[0]['data_ename'],float(sets[0]['value']),sets[0]['error_flag'],sets[0]['time'],sets[0]['dis_flag'],sets[0]['dis_time'])
             if res['server_name'] == 'area':
                 self.AreaSendData[res['data_ename']] = data_param(data,dataconstraint)
             else:
@@ -792,6 +943,11 @@ class NodeDataServer(data_server):
         self.handleTask = None
         self.handleResult = None
         self.handleTimer = handleTimer
+        
+    def getDataSession(self, session_name):
+        data_sess = self.getDataSession(session_name)
+        if data_sess:
+            return data_sess
         
     def setUploadSessionflag(self, flag):
         startcmp = False
@@ -854,37 +1010,22 @@ DoInithandle_dict = {
                  'unit'  :  doUnitInit,
                  'node' : doNodeInit,
                  }
-    
-global FLAG
-FLAG = False
 
-def handleConnect(pair):
-    global FLAG
-    print FLAG
+def restartService():
     try:
-        if not FLAG:
-            FLAG = True
-        else:
-            FLAG = False
-        if FLAG:
-            DSAURServer().stop()
-#             time.sleep(2)
-            DSAURServer().startService(handleConnect)
-            print 'restart'
-        else:
-            DSAURServer().stop()
-            print "start"
-        return
+        DSAURServer().stop()
+        DSAURServer().startService(handleConnect)
     except Exception as e:
         print e
-        return
+
+def handleConnect(pair):
     sock, addr = pair
     print addr
     sockSession = None
     if addr[0] == DSAURServer().region_ip:
         sockSession = AsyncClient(sock,handleData,('area',addr[0],'area'))
         DSAURServer().server.setUploadSession(sockSession)
-    elif addr[0] in DSAURServer().ip_node_map:
+    elif addr[0] in DSAURServer().node_ipset:
         sockSession = AsyncClient(sock,handleData,(DSAURServer().ip_node_map[addr[0]],addr[0],'node'))
         DSAURServer().server.node_server_map[addr[0]].sockSession = sockSession
         DSAURServer().server.node_server_map[addr[0]].setState(True)
@@ -892,10 +1033,3 @@ def handleConnect(pair):
         sockSession = AsyncClient(sock,handleData)
         DSAURServer.client_map[id(sockSession)] = sockSession
     print sockSession
-        
-if __name__ == "__main__" :
-    DSAURServer().Init('172.16.1.16', 8899)
-    DSAURServer().startService(handleConnect)
-#     server = AsyncServer('172.16.1.16',8899,handleConnect)
-#     server.run()
-#     asyncore.loop()

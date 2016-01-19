@@ -138,7 +138,7 @@ class device():
         if conf_name in self.data_dict and self.data_dict[conf_name]:
             self.data_dict[conf_name].setValue(value)
             if conf_name in self.linkset:
-                for k,v in self.data_linkpara:
+                for k,v in self.data_linkpara.items():
                     if v == conf_name:
                         self.data_dict[k].setValue(value)
             else:
@@ -578,7 +578,7 @@ class plc(device):
             if self.SUPPORTED_INSTRUCTIONS[key][1] > 0 :
                 for num in range(self.SUPPORTED_INSTRUCTIONS[key][1]):
                     str_name = str_fisrt + str(num+1)
-                    self.datadict.update({str_name : None})
+                    self.data_dict.update({str_name : None})
         self._Algorithm_dict = {}
         
         self._Parsedict = {

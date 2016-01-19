@@ -14,6 +14,9 @@ from mydevice import infrared
 import basedata
 import os
 import threading
+from mydevice import co2
+
+print co2().data_dict
 
 def func(m):
     print m
