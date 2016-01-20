@@ -22,7 +22,7 @@ def doCyclePeriod(data):
     data = packProtocolhandlers['SessionPeriod'](data['session_name'],
                                                  data['period'],
                                                  str(datetime.now())[:19])
-    SmartServer.DSAURServer().SendUploadData(data)
+    #SmartServer.DSAURServer().SendUploadData(data)
     
     
     

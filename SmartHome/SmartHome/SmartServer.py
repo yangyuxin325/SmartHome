@@ -35,7 +35,8 @@ def handleData(sockSession):
             else:
                 pass
         else:
-            pass
+            print '+++++++++++++++++++'
+            #pass
     else:
         print buf1.strip()
     
@@ -818,7 +819,7 @@ class UnitDataServer(data_server):
             self.dis_time = datetime.now()
         else:
             if self.firstflag is False:
-                self.initData(self.region, self.handleTask, self.handleResult)
+                self.initData(self.region_ip, self.handleTask, self.handleResult)
 #                 程序计算开始
             if self.firstflag:
                 self.firstflag = False
@@ -1078,7 +1079,7 @@ def handleConnect(pair):
             sockSession = AsyncClient(sock,handleData,Server_Param('region',addr[0],'region'))
             DSAURServer().server.setUploadSession(sockSession,True)
         elif addr[0] in DSAURServer().node_ipset:
-            sockSession = AsyncClient(sock,handleData,(DSAURServer().ip_node_map[addr[0]],addr[0],'node'))
+            sockSession = AsyncClient(sock,handleData,Server_Param(DSAURServer().ip_name_map[addr[0]],addr[0],'node'))
             DSAURServer().server.node_server_map[addr[0]].sockSession = sockSession
             DSAURServer().server.node_server_map[addr[0]].setState(True)
         else:
