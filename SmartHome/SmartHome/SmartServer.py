@@ -17,10 +17,11 @@ from basedata import basic_data
 from basedata import data_constraint
 from basedata import data_param
 from copy import deepcopy
-from decimal import *
+# from decimal import *
 import com_handlers
 import struct
 import json
+from handlers import RequestProtocolData
 
 # 被动socket数据处理
 def handleData(sockSession):
@@ -32,8 +33,10 @@ def handleData(sockSession):
             body = json.loads(buf2)
             if body['status_code'] == 255:
                 DSAURServer().SendUploadData(buf1+buf2)
-            else:
+            elif body['status_code'] == 254:
                 pass
+            else:
+                RequestProtocolData(head,body,sockSession)
         else:
             pass
     else:
@@ -129,11 +132,13 @@ class AsyncSession(asyncore.dispatcher_with_send):
         
     def handle_timer(self):
         if self.connected:
+            print self.addr, self.connected
             self.send(struct.pack('!4i', 0, 0, 0, 0))
+            self.timer = threading.Timer(3,self.handle_timer)
+            self.timer.start()
         else:
             pass
-        self.timer = threading.Timer(3,self.handle_timer)
-        self.timer.start()
+        
         
     def handle_read(self):
         asyncore.dispatcher_with_send.handle_read(self)
@@ -151,18 +156,22 @@ class AsyncSession(asyncore.dispatcher_with_send):
         
     def handle_connect(self):
         asyncore.dispatcher_with_send.handle_connect(self)
-        self.timer = threading.Timer(3,self.handle_timer)
-        self.timer.start()
-#         doConnect(self)
+        if self.connected:
+            doConnect(self)
+            self.timer = threading.Timer(3,self.handle_timer)
+            self.timer.start()
+        else:
+            pass
         
     def handle_close(self):
         asyncore.dispatcher_with_send.handle_close(self)
         try:
-#             doClose(self)
+            doClose(self)
             time.sleep(1)
             self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
             self.connect(self.addr)
         except Exception as e:
+            self.connecting = False
             print e
         
     def sendData(self,data):
@@ -480,9 +489,14 @@ class DSAURServer(object):
             
     def getDataSession(self, session_name):
         return self.server.getDataSession(session_name)
+    
+    def getDataSessions(self, server_name):
+        return self.server.getDataSessions(server_name)
+                
             
 class data_server():
     dataConfs = {}
+    dataPriors = {}
     def __init__(self, server_ip, server_name, state = True, sockSession=None):
         self.server_ip = server_ip
         self.server_name = server_name
@@ -513,6 +527,12 @@ class data_server():
             return self.dev_data.session_map[session_name]
         else:
             pass
+        
+    def getDataSessions(self):
+        if self.dev_data:
+            return self.dev_data.session_map.values()
+        else:
+            return []
         
     def getDataSessionNames(self):
         return self.dev_data.session_map.keys()
@@ -610,7 +630,7 @@ class data_server():
         for res in ress:
             self.udev_data[res['data_type']] = {}
         for k in self.udev_data.keys():
-            ress = sqlConnection.query("select DataType.data_type,DataInfo.data_ename,DataInfo.value,\
+            ress = sqlConnection.query("select DataType.data_type,DataType.pri,DataInfo.data_ename,DataInfo.value,\
             DataInfo.error_flag,DataInfo.time,DataInfo.dis_flag,DataInfo.dis_time,\
             DataConstraint.min_variation,DataConstraint.min_val,DataConstraint.max_val,\
             DataConstraint.dis_interval from DataInfo inner join DataConstraint inner join \
@@ -624,6 +644,10 @@ class data_server():
                                                      res['dis_interval'])
                 data = basic_data(res['data_ename'],float(res['value']),res['error_flag'],res['time'],res['dis_flag'],res['dis_time'])
                 self.udev_data[res['data_type']][res['data_ename']] = data_param(data,dataconstraint)
+                if res['pri'] != 0:
+                    self.dataPriors[res['data_ename']] = res['pri']
+                else:
+                    pass
         sqlConnection.close()
         
     def __initDataConfs(self, init_ip):
@@ -633,13 +657,17 @@ class data_server():
         ress = sqlConnection.query("select data_ename,data_cname,data_type from DataType where data_type is not NULL")
         for res in ress:
             self.dataConfs[res['data_ename']] = data_conf(res['data_ename'],res['data_cname'],self.server_name,res['data_type'])
-        ress = sqlConnection.query('select DataType.data_ename,DataType.data_cname,DataType.conf_name, \
+        ress = sqlConnection.query('select DataType.data_ename,DataType.pri,DataType.data_cname,DataType.conf_name, \
         Device.dev_name, Device.session_name from DataType  inner join Device on \
         DataType.dev_name = Device.dev_name and DataType.server_name  = %s',self.server_name)
         for res in ress:
             self.dataConfs[res['data_ename']] = data_conf(res['data_ename'],res['data_cname'],
                                                           self.server_name,None,res['session_name'],
                                                           res['dev_name'],res['conf_name'])
+            if res['pri'] != 0:
+                self.dataPriors[res['data_ename']] = res['pri']
+            else:
+                pass
         sqlConnection.close()
         
 def PingIP(strIp):
@@ -669,6 +697,18 @@ class RegionDataServer(data_server):
         self.name_ip_map = {}
         self.handleTimer = handleTimer
         self.upload_Session = None
+        
+    def getDataSessions(self, server_name):
+        if server_name in self.name_ip_map:
+            server_ip = self.name_ip_map[server_name]
+            server = None
+            if server_ip in self.unit_server_map:
+                server = self.unit_server_map[server_ip]
+            else:
+                server = self.node_server_map[server_ip]
+            return server.getDataSessions()
+        else:
+            return []
         
     def getDataSession(self, session_name):
         data_sess = self.getDataSession(session_name)
@@ -811,6 +851,18 @@ class UnitDataServer(data_server):
             data_sess = ser.getDataSession(session_name)
             if data_sess:
                 return data_sess
+            
+    def getDataSessions(self, server_name):
+        if self.server_name == server_name:
+            return data_server.getDataSessions(self)
+        else:
+            pass
+        if server_name in self.name_ip_map:
+            server_ip = self.name_ip_map[server_name]
+            server = self.node_server_map[server_ip]
+            return server.getDataSessions()
+        else:
+            return []
         
     def setUploadSession(self, session, flag):
         self.upload_Session = session
@@ -818,7 +870,7 @@ class UnitDataServer(data_server):
             self.dis_time = datetime.now()
         else:
             if self.firstflag is False:
-                self.initData(self.region, self.handleTask, self.handleResult)
+                self.initData(self.region_ip, self.handleTask, self.handleResult)
 #                 程序计算开始
             if self.firstflag:
                 self.firstflag = False
@@ -945,7 +997,7 @@ class UnitDataServer(data_server):
     def __initOtherData(self):
         db = self.db
         sqlConnection = torndb.Connection(db.addr, db.name, user=db.user, password=db.password)
-        ress = sqlConnection.query("select DataType.data_ename,DataType.data_cname,DataType.server_name,\
+        ress = sqlConnection.query("select DataType.data_ename,DataType.pri,DataType.data_cname,DataType.server_name,\
         DataType.data_type, DataType.dev_name, DataType.conf_name from DataType inner join \
         transmitData on DataType.data_ename = transmitData.data_ename and \
         transmitData.server_name = %s",self.server_name)
@@ -958,6 +1010,10 @@ class UnitDataServer(data_server):
             else:
                 self.dataConfs[res['data_ename']] = data_conf(res['data_ename'],res['data_cname'],
                                                           self.server_name,res['data_type'])
+            if res['pri'] != 0:
+                self.dataPriors[res['data_ename']] = res['pri']
+            else:
+                pass
             sets = sqlConnection.query("select DataInfo.data_ename,DataInfo.value,\
             DataInfo.error_flag,DataInfo.time,DataInfo.dis_flag,DataInfo.dis_time,\
             DataConstraint.min_variation,DataConstraint.min_val,DataConstraint.max_val,\
@@ -996,9 +1052,15 @@ class NodeDataServer(data_server):
         self.handleTimer = handleTimer
         
     def getDataSession(self, session_name):
-        data_sess = self.getDataSession(session_name)
+        data_sess = data_server.getDataSession(self,session_name)
         if data_sess:
             return data_sess
+        
+    def getDataSessions(self, server_name):
+        if self.server_name == server_name:
+            return data_server.getDataSessions(self)
+        else:
+            return []
         
     def setUploadSessionflag(self, flag):
         startcmp = False
@@ -1078,7 +1140,7 @@ def handleConnect(pair):
             sockSession = AsyncClient(sock,handleData,Server_Param('region',addr[0],'region'))
             DSAURServer().server.setUploadSession(sockSession,True)
         elif addr[0] in DSAURServer().node_ipset:
-            sockSession = AsyncClient(sock,handleData,(DSAURServer().ip_node_map[addr[0]],addr[0],'node'))
+            sockSession = AsyncClient(sock,handleData,Server_Param(DSAURServer().ip_name_map[addr[0]],addr[0],'node'))
             DSAURServer().server.node_server_map[addr[0]].sockSession = sockSession
             DSAURServer().server.node_server_map[addr[0]].setState(True)
         else:

@@ -37,8 +37,8 @@ def handleData(sockSession):
 
 
 if __name__ == "__main__" :
-    AsyncSession('172.16.1.10',8899,handleData,Server_Param('region','172.16.1.15','region'),None)
-    asyncore.loop()
+    AsyncSession('172.16.1.15',8899,handleData,Server_Param('region','172.16.1.15','region'),None)
+    asyncore.loop(5)
 
 # print co2().data_dict
 # 
