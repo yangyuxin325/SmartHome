@@ -9,16 +9,19 @@ from datetime import datetime
 __metaclass__ = type
 
 device_Dict = {}
-device_Dict['infrared'] = '红外探测器'
-device_Dict['co2'] = 'co2探测器'
-device_Dict['stc_1'] = '模块stc_1'
-device_Dict['stc_201'] = '模块stc_201'
-device_Dict['plc'] = '可编程控制器'
-device_Dict['sansu'] = '三速风机'
-device_Dict['triplecng'] = '三联供机组'
-device_Dict['voc'] = 'voc探测器'
-device_Dict['wenkong'] = '温控器'
-device_Dict['ZMA194E'] = '三相电表'
+device_Dict['infrared'] = u'红外探测器'
+device_Dict['co2'] = u'co2探测器'
+device_Dict['stc_1'] = u'模块stc_1'
+device_Dict['stc_201'] = u'模块stc_201'
+device_Dict['plc'] = u'可编程控制器'
+device_Dict['sansu'] = u'三速风机'
+device_Dict['triplecng'] = u'三联供机组'
+device_Dict['voc'] = u'voc探测器'
+device_Dict['wenkong'] = u'温控器'
+device_Dict['ZMA194E'] = u'三相电表'
+
+sesstype_Dict = {}
+sesstype_Dict[1] = u'usb转485'
 
 class crc16:  
     auchCRCHi = [ 0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0, 0x80, 0x41, 0x01, 0xC0, \
@@ -151,6 +154,7 @@ class device():
         if data:
             item = self.data_dict[conf_name]
             item.setData(data)
+            return item
         else:
             pass
         

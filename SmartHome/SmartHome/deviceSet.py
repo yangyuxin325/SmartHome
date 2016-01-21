@@ -6,7 +6,7 @@ Created on 2015年12月21日
 @author: sanhe
 '''
 import torndb
-from SmartHome import mydevice
+import mydevice
 from decimal import *
 
 class DB_conf():
