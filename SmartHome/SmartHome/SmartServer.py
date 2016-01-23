@@ -37,7 +37,8 @@ def handleData(sockSession):
             else:
                 RequestProtocolData(head,body,sockSession)
         else:
-            pass
+            print '+++++++++++++++++++'
+            #pass
     else:
         print buf1.strip()
     
@@ -633,13 +634,12 @@ class data_server():
         
     def __initUDevData(self, init_ip):
         db = self.db
-        if db:
-            db.addr = init_ip + ':3306'
-            sqlConnection = torndb.Connection(db.addr, db.name, user=db.user, password=db.password)
-            ress = sqlConnection.query("select data_type from DataType where data_type is not NULL \
-            and server_name = %s group by data_type",self.server_name)
-            for res in ress:
-                self.udev_data[res['data_type']] = UserDict()
+        db.addr = init_ip + ':3306'
+        sqlConnection = torndb.Connection(db.addr, db.name, user=db.user, password=db.password)
+        ress = sqlConnection.query("select data_type from DataType where data_type is not NULL \
+        and server_name = %s group by data_type",self.server_name)
+        for res in ress:
+            self.udev_data[res['data_type']] = UserDict()
             for k in self.udev_data.keys():
                 ress = sqlConnection.query("select DataType.data_type,DataType.pri,DataInfo.data_ename,DataInfo.value,\
                 DataInfo.error_flag,DataInfo.time,\

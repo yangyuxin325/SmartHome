@@ -12,6 +12,8 @@ from greenlet import greenlet
 from datetime import datetime
 from com_handlers import doDataProcess
 from com_handlers import doSessionState
+from errcmd_duque import errcmd_duque
+from _collections import deque
 
 def Sum_Right(array):
     check_sum = 0
@@ -47,6 +49,12 @@ class data_session():
         self.stateTime = None
         self.com = None
         self.periods = None
+        
+        self.errcmd = None
+        self.cycleCmdDeque= self.dev_set.getCmdSet()
+        self.cycleCmdDeque.append({"id" : 0, "cmd" : "", "dev_id" : -1})
+        self.ctrlCmdDeque = deque()
+        self.errCmdDeque = errcmd_duque()
         
     def getDataItem(self, dev_name, conf_name):
         data = self.getData(dev_name, conf_name)
@@ -177,15 +185,15 @@ class data_session():
             try:
                 cmd = None
                 data = None
-                if len(self.ctrlCmdList) > 0:
-                    data = self.ctrlCmdList.pop(0)
-                elif len(self.cycleCmdList) > 0 :
-                    cmd = self.cycleCmdList.pop(0)
+                if len(self.ctrlCmdDeque) > 0:
+                    data = self.ctrlCmdDeque.popleft()
+                elif len(self.cycleCmdDeque) > 0 :
+                    cmd = self.cycleCmdDeque.popleft()
                     data = cmd["cmd"]
                 else:
                     print "there is not cmds in queue!"
                     time.sleep(1)
-                    if len(self.errCmdList) == 0:
+                    if len(self.errCmdDeque) == 0:
                         self.closeSerial()
                         self.start()
                         return
@@ -215,18 +223,19 @@ class data_session():
 #             print "Cycle Period is", self.periods,"s."
             self.__startTime = time.time()
             doDataProcess(self)
-            self.cycleCmdList.append(self.__cmd)
-            if len(self.cycleCmdList) == 1:
-                time.sleep(10)
-            else:
-                pass
-            if len(self.cycleCmdList) > 0:
-                if time.time() - self.errStartTime > 60 :
-                    self.cycleCmdList = self.cycleCmdList + self.errCmdList
-                    self.errCmdList = []
+            if len(self.cycleCmdDeque) == 0  or  time.time() - self.errStartTime > 60:
+                if self.errCmdDeque.empty():
+                    cmddata = self.errCmdDeque.popcmd()
+                    self.errcmd  = cmddata
+                    self.cycleCmdDeque.append(cmddata)
                     self.errStartTime = time.time()
                 else:
                     pass
+            else:
+                pass
+            self.cycleCmdDeque.append(self.__cmd)
+            if len(self.cycleCmdDeque) == 1:
+                time.sleep(10)
             else:
                 pass
         else:
@@ -284,7 +293,17 @@ class data_session():
                 dev_id = ord(data[0])
             self.dev_set.ParseData(dev_id,listdata)
             if self.__cmd is not None and self.__cmd['dev_id'] == dev_id :
-                self.cycleCmdList.append(self.__cmd)
+                self.cycleCmdDeque.append(self.__cmd)
+                if self.__cmd == self.errcmd:
+                    self.errcmd = None
+                    cmd_deque = deque()
+                    cmd_deque = self.errCmdDeque.popcmdset(dev_id)
+                    m_cmd =  self.errCmdDeque.popcmd()
+                    if m_cmd is not None:
+                        self.errcmd = m_cmd
+                        cmd_deque.append(m_cmd)
+                    self.cycleCmdDeque = self.cycleCmdDeque + cmd_deque
+                    
                 if self.dev_set.getConnectState(dev_id) :
                     self.dev_set.setDisConnect(dev_id,False)
                 else:
@@ -298,17 +317,17 @@ class data_session():
         if self.__cmd is not None:
             self.dev_set.setDisConnect(self.__cmd["dev_id"],True)
             if self.dev_set.getConnectState(self.__cmd["dev_id"]) is False:
-                self.errCmdList.append(self.__cmd)
+                self.errCmdDeque.push(self.__cmd)
             else :
-                self.cycleCmdList.append(self.__cmd)
+                self.cycleCmdDeque.append(self.__cmd)
                 
     def __CmdThread(self, cmd, delay_second):
         time.sleep(delay_second)
-        self.ctrlCmdList.append(cmd)
+        self.ctrlCmdDeque.append(cmd)
     
     def AddSendCmd(self, cmd, delay_second):
         if delay_second > 0 :
             th = threading.Thread(target= self.__CmdThread, args= (cmd, delay_second))
             th.start()
         else :
-            self.ctrlCmdList.append(cmd)
+            self.ctrlCmdDeque.append(cmd)

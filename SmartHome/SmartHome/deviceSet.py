@@ -7,9 +7,10 @@ Created on 2015年12月21日
 '''
 import torndb
 import mydevice
-from basedata import data_param
 from decimal import *
 from UserDict import UserDict
+from collections import deque
+from basedata import data_param
 
 class DB_conf():
     def __init__(self, addr, name, user, password):
@@ -65,10 +66,11 @@ class deviceSet(UserDict):
         
     def getCmdSet(self):
         cycleCmds = {}
-        for dev_id, dev in self.items():
+        for dev_id, dev in self.dev_dict.items():
             cycleCmds[dev_id] = dev.genPratrolInstr(dev_id)
         cmdCount = 0
-        line_cmdList = []
+        #line_cmdList = []
+        line_cmdList = deque()
         for key,cmds in cycleCmds.items():
             for cmd in cmds :
                 cmdCount += 1

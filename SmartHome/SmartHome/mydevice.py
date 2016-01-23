@@ -146,6 +146,25 @@ class device(UserDict):
     def setValue(self, conf_name ,value):
         if self.get(conf_name):
             self.get(conf_name).setValue(value)
+            
+    def setDataValue(self, conf_name ,value):
+        if conf_name in self.data_dict and self.data_dict[conf_name]:
+            self.data_dict[conf_name].setValue(value)
+            if conf_name in self.linkset:
+                for k,v in self.data_linkpara.items():
+                    if v == conf_name:
+                        self.data_dict[k].setValue(value)
+            else:
+                pass
+        else:
+            pass
+    
+    def getDataItem(self, conf_name):
+        data = self.getData(conf_name)
+        if data:
+            item = self.data_dict[conf_name]
+            item.setData(data)
+            return item
         else:
             pass
         
