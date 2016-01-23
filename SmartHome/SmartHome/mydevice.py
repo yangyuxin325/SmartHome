@@ -149,10 +149,10 @@ class device(UserDict):
         else:
             pass
         
-    def getInterval(self, conf_name):
+    def getDisInterval(self, conf_name):
         param = self.get(conf_name)
         if param:
-            return param.getInterval() if param.getInterval() else 0
+            return param.getDisInterval() if param.getDisInterval() else 0
         else:
             return 0
         

@@ -57,9 +57,9 @@ class deviceSet(UserDict):
         else:
             return failobj
         
-    def getInterval(self, dev_name, conf_name):
+    def getDisInterval(self, dev_name, conf_name):
         if self.get(dev_name):
-            return self.get(dev_name).getInterval(conf_name)
+            return self.get(dev_name).getDisInterval(conf_name)
         else:
             return 0
         

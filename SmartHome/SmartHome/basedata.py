@@ -67,8 +67,8 @@ class data_param(basic_data):
     def getData(self):
         return self.__data
     
-    def getInterval(self):
-        return self.__constraint['interval']
+    def getDisInterval(self):
+        return self.__constraint['dis_interval']
         
     def setConstraint(self, constraint):
         if self.__constraint != constraint:
