@@ -12,9 +12,7 @@ import torndb
 import time
 import multiprocessing
 from datetime import datetime
-from basedata import data_conf
 from basedata import basic_data
-from basedata import data_constraint
 from basedata import data_param
 from copy import deepcopy
 # from decimal import *
@@ -22,6 +20,7 @@ import com_handlers
 import struct
 import json
 from handlers import RequestProtocolData
+from UserDict import UserDict
 
 # 被动socket数据处理
 def handleData(sockSession):
@@ -344,6 +343,7 @@ class sessionSet():
         
     def startPatrol(self):
         for session_name in self.session_map:
+            self.session_map[session_name].useflag = True
             p = multiprocessing.Process(target=self.session_map[session_name])
             self.process_map[session_name] = p
             p.start()
@@ -358,18 +358,24 @@ class sessionSet():
     def init(self, db):
         if db is not None:
             sqlConnection = torndb.Connection(db.addr, db.name, user=db.user, password=db.password)
-            sqlString = "select session_name, session_id from DataSession Where server_name = %s"
+            sqlString = "select SessionState.session_name, SessionState.session_state,\
+            SessionState.updatetime,DataSession.session_id from SessionState inner join \
+            DataSession on SessionState.session_name = DataSession.session_name and \
+            server_name = %s"
             sessions = sqlConnection.query(sqlString, self.server_name)
             from deviceSet import deviceSet
             from data_session import data_session
             for session in sessions:
                 devSet = deviceSet(session['session_name'], db)
                 devSet.initData()
-                self.session_map[session['session_name']] = data_session(self.server_name,
-                                                                         session['session_name'],
-                                                                         session['session_id'],
-                                                                         devSet,
-                                                                         self.handleTask)
+                sess = data_session(self.server_name,
+                                    session['session_name'],
+                                    session['session_id'],
+                                    devSet,
+                                    self.handleTask)
+                sess.state = session['session_state']
+                sess.stateTime = session['updatetime']
+                self.session_map[session['session_name']] = sess
             sqlConnection.close()
         else:
             pass
@@ -495,8 +501,7 @@ class DSAURServer(object):
                 
             
 class data_server():
-    dataConfs = {}
-    dataPriors = {}
+    dataConfs = UserDict
     def __init__(self, server_ip, server_name, state = True, sockSession=None):
         self.server_ip = server_ip
         self.server_name = server_name
@@ -505,7 +510,7 @@ class data_server():
         self.state = state
         self.dis_time = None
         self.dev_data = None 
-        self.udev_data = {}
+        self.udev_data = UserDict
         self.init_ip = None
         self.handleTask = None
         self.handleResult = None
@@ -615,60 +620,69 @@ class data_server():
         self.__initDevData(init_ip, handleTask, handleResult)
         self.__initUDevData(init_ip)
         
+    
+        
     def __initDevData(self, init_ip, handleTask=None, handleResult=None):
         self.dev_data = sessionSet(self.server_name, handleTask, handleResult)
         db = self.db
-        db.addr = init_ip + ':3306'
+        if db:
+            db.addr = init_ip + ':3306'
+        else:
+            pass
         self.dev_data.init(db)
         
     def __initUDevData(self, init_ip):
         db = self.db
-        db.addr = init_ip + ':3306'
-        sqlConnection = torndb.Connection(db.addr, db.name, user=db.user, password=db.password)
-        ress = sqlConnection.query("select data_type from DataType where data_type is not NULL \
-        and server_name = %s group by data_type",self.server_name)
-        for res in ress:
-            self.udev_data[res['data_type']] = {}
-        for k in self.udev_data.keys():
-            ress = sqlConnection.query("select DataType.data_type,DataType.pri,DataInfo.data_ename,DataInfo.value,\
-            DataInfo.error_flag,DataInfo.time,DataInfo.dis_flag,DataInfo.dis_time,\
-            DataConstraint.min_variation,DataConstraint.min_val,DataConstraint.max_val,\
-            DataConstraint.dis_interval from DataInfo inner join DataConstraint inner join \
-            DataType on DataInfo.data_ename = DataConstraint.data_ename and \
-            DataInfo.data_ename = DataType.data_ename and DataType.server_name = %s \
-            and DataType.data_type = %s",self.server_name,k)
+        if db:
+            db.addr = init_ip + ':3306'
+            sqlConnection = torndb.Connection(db.addr, db.name, user=db.user, password=db.password)
+            ress = sqlConnection.query("select data_type from DataType where data_type is not NULL \
+            and server_name = %s group by data_type",self.server_name)
             for res in ress:
-                dataconstraint = data_constraint(float(res['min_variation']),\
-                float(res['min_val']) if res['min_val'] else res['min_val'],\
-                float(res['max_val']) if res['max_val'] else res['max_val'],\
-                                                     res['dis_interval'])
-                data = basic_data(res['data_ename'],float(res['value']),res['error_flag'],res['time'],res['dis_flag'],res['dis_time'])
-                self.udev_data[res['data_type']][res['data_ename']] = data_param(data,dataconstraint)
-                if res['pri'] != 0:
-                    self.dataPriors[res['data_ename']] = res['pri']
-                else:
-                    pass
-        sqlConnection.close()
+                self.udev_data[res['data_type']] = UserDict()
+            for k in self.udev_data.keys():
+                ress = sqlConnection.query("select DataType.data_type,DataType.pri,DataInfo.data_ename,DataInfo.value,\
+                DataInfo.error_flag,DataInfo.time,\
+                DataConstraint.min_variation,DataConstraint.min_val,DataConstraint.max_val,\
+                DataConstraint.dis_interval from DataInfo inner join DataConstraint inner join \
+                DataType on DataInfo.data_ename = DataConstraint.data_ename and \
+                DataInfo.data_ename = DataType.data_ename and DataType.server_name = %s \
+                and DataType.data_type = %s",self.server_name,k)
+                for res in ress:
+                    dataconstraint = UserDict()
+                    temlist = {'min_variation', 'min_val', 'max_val', 'dis_interval'}
+                    for k in temlist:
+                        v = res[k]
+                        dataconstraint[k] = float(v) if v else v
+                    dataitem = data_param(res['data_ename'],dataconstraint,
+                                                  float(res['value']),res['error_flag'],
+                                                  res['time'])
+                    self.udev_data[res['data_type']][res['data_ename']] = dataitem
+            sqlConnection.close()
+        else:
+            pass
         
     def __initDataConfs(self, init_ip):
         db = self.db
-        db.addr = init_ip + ':3306'
-        sqlConnection = torndb.Connection(db.addr, db.name, user=db.user, password=db.password)
-        ress = sqlConnection.query("select data_ename,data_cname,data_type from DataType where data_type is not NULL")
-        for res in ress:
-            self.dataConfs[res['data_ename']] = data_conf(res['data_ename'],res['data_cname'],self.server_name,res['data_type'])
-        ress = sqlConnection.query('select DataType.data_ename,DataType.pri,DataType.data_cname,DataType.conf_name, \
-        Device.dev_name, Device.session_name from DataType  inner join Device on \
-        DataType.dev_name = Device.dev_name and DataType.server_name  = %s',self.server_name)
-        for res in ress:
-            self.dataConfs[res['data_ename']] = data_conf(res['data_ename'],res['data_cname'],
-                                                          self.server_name,None,res['session_name'],
-                                                          res['dev_name'],res['conf_name'])
-            if res['pri'] != 0:
-                self.dataPriors[res['data_ename']] = res['pri']
-            else:
-                pass
-        sqlConnection.close()
+        if db:
+            db.addr = init_ip + ':3306'
+            sqlConnection = torndb.Connection(db.addr, db.name, user=db.user, password=db.password)
+            ress = sqlConnection.query("select data_ename,data_cname,data_type from DataType where data_type is not NULL")
+            for res in ress:
+                data_conf = UserDict()
+                for k, v in res:
+                    data_conf[k] = v
+                self.dataConfs[res['data_ename']] = data_conf
+            ress = sqlConnection.query('select DataType.data_ename,DataType.pri,DataType.data_cname,DataType.conf_name, \
+            Device.dev_name, Device.session_name from DataType  inner join Device on \
+            DataType.dev_name = Device.dev_name and DataType.server_name  = %s',self.server_name)
+            for res in ress:
+                for k, v in res:
+                    data_conf[k] = v
+                self.dataConfs[res['data_ename']] = data_conf
+            sqlConnection.close()
+        else:
+            pass
         
 def PingIP(strIp):
     import os
@@ -743,15 +757,15 @@ class RegionDataServer(data_server):
     def getDataItem(self, ename):
         dataitem = None
         if ename in self.dataConfs:
-            dataconf = self.dataConfs[ename]
-            if dataconf.sever_name == self.server_name:
+            data_conf = self.dataConfs[ename]
+            if data_conf['server_name'] == self.server_name:
                 dataitem = data_server.getDataItem(self, data_conf)
-            elif dataconf.sever_name in self.name_ip_map:
-                server_ip = self.name_ip_map[dataconf.sever_name]
+            elif data_conf['server_name'] in self.name_ip_map:
+                server_ip = self.name_ip_map[data_conf['server_name']]
                 if server_ip in self.unit_server_map:
-                    dataitem = self.unit_server_map[server_ip].getDataItem(dataconf)
+                    dataitem = self.unit_server_map[server_ip].getDataItem(data_conf)
                 else:
-                    dataitem = self.node_server_map[server_ip].getDataItem(dataconf)
+                    dataitem = self.node_server_map[server_ip].getDataItem(data_conf)
             else:
                 pass
         else:
@@ -881,11 +895,11 @@ class UnitDataServer(data_server):
     def getRealValue(self, ename):
         value = None
         if ename in self.dataConfs:
-            dataconf = self.dataConfs[ename]
+            data_conf = self.dataConfs[ename]
             value = data_server.getRealValue(self, data_conf)
-        elif dataconf.server_name in self.name_ip_map:
-            value = self.node_server_map[self.name_ip_map[dataconf.server_name]].\
-            getRealValue(dataconf)
+        elif data_conf['server_name'] in self.name_ip_map:
+            value = self.node_server_map[self.name_ip_map[data_conf['server_name']]].\
+            getRealValue(data_conf)
         else:
             value = None
             if ename in self.AreaSendData or ename in self.transmitData:
@@ -898,11 +912,11 @@ class UnitDataServer(data_server):
     def getDataValue(self, ename):
         value = None
         if ename in self.dataConfs:
-            dataconf = self.dataConfs[ename]
-            if dataconf.server_name == self.server_name:
+            data_conf = self.dataConfs[ename]
+            if data_conf['server_name'] == self.server_name:
                 value = data_server.getDataValue(self, data_conf)
-            elif dataconf.server_name in self.name_ip_map:
-                value = self.node_server_map[self.name_ip_map[dataconf.server_name]].\
+            elif data_conf['server_name'] in self.name_ip_map:
+                value = self.node_server_map[self.name_ip_map[data_conf['server_name']]].\
                 getDataValue(data_conf)
             else:
                 value = None
@@ -1002,8 +1016,14 @@ class UnitDataServer(data_server):
         transmitData on DataType.data_ename = transmitData.data_ename and \
         transmitData.server_name = %s",self.server_name)
         for res in ress:
+            data_conf = UserDict()
+            for k, v in res:
+                data_conf[k] = v
             if res['dev_name']:
-                    items = sqlConnection.query("select session_name,dev_id from Device Where dev_name = %s",res['dev_name'])
+                    items = sqlConnection.query("select session_name,dev_id from Device \
+                    Where dev_name = %s",res['dev_name'])
+                    
+                    
                     self.dataConfs[res['data_ename']] = data_conf(res['data_ename'],res['data_cname'],
                                                           self.server_name,None,items[0]['session_name'],
                                                           items[0]['dev_id'],res['conf_name'])
@@ -1020,15 +1040,17 @@ class UnitDataServer(data_server):
             DataConstraint.dis_interval from DataInfo inner join DataConstraint inner join \
             on DataInfo.data_ename = DataConstraint.data_ename and \
             DataInfo.data_ename = %s",res['data_ename'])
-            dataconstraint = data_constraint(float(sets[0]['min_variation']),\
-                    float(sets[0]['min_val']) if sets[0]['min_val'] else sets[0]['min_val'],\
-                    float(sets[0]['max_val']) if sets[0]['max_val'] else sets[0]['max_val'],\
-                                                     sets[0]['dis_interval'])
-            data = basic_data(sets[0]['data_ename'],float(sets[0]['value']),sets[0]['error_flag'],sets[0]['time'],sets[0]['dis_flag'],sets[0]['dis_time'])
+            dataconstraint = UserDict()
+            templist = ['min_variation', 'min_val', 'max_val', 'dis_interval']
+            for k in templist:
+                dataconstraint[k] = float(sets[0][k]) if sets[0][k] else sets[0][k]
+            dataitem = data_param(res['data_ename'],dataconstraint,
+                                                  float(sets[0]['value']),sets[0]['error_flag'],
+                                                  sets[0]['time'])
             if res['server_name'] == 'region':
-                self.AreaSendData[res['data_ename']] = data_param(data,dataconstraint)
+                self.AreaSendData[res['data_ename']] = dataitem
             else:
-                self.transmitData[res['data_ename']] = data_param(data,dataconstraint)
+                self.transmitData[res['data_ename']] = dataitem
         sqlConnection.close()
         
 def doNodeInit(node_server):

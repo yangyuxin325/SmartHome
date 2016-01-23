@@ -25,7 +25,7 @@ def doDataParam(dataparam):
         else:
             pass
     sdata =  packProtocolhandlers['DataInfo'](data,reason,255)
-    SmartServer.DSAURServer.putDataToCache(data.ename, sdata)
+    SmartServer.DSAURServer.putDataToCache(data.ename, {'data' : data,'reason' : reason})
 
 def doCyclePeriod(data):
     data = packProtocolhandlers['SessionPeriod'](data['session_name'],
