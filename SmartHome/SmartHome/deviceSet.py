@@ -8,6 +8,7 @@ Created on 2015年12月21日
 import torndb
 import mydevice
 from decimal import *
+from collections import deque
 
 class DB_conf():
     def __init__(self, addr, name, user, password):
@@ -46,7 +47,8 @@ class deviceSet():
         for dev_id, dev in self.dev_dict.items():
             cycleCmds[dev_id] = dev.genPratrolInstr(dev_id)
         cmdCount = 0
-        line_cmdList = []
+        #line_cmdList = []
+        line_cmdList = deque()
         for key,cmds in cycleCmds.items():
             for cmd in cmds :
                 cmdCount += 1
