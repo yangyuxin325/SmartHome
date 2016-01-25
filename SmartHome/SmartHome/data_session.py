@@ -12,7 +12,7 @@ from greenlet import greenlet
 from datetime import datetime
 from com_handlers import doDataProcess
 from com_handlers import doSessionState
-from errcmd_duque import errcmd_duque
+from SmartHome import errcmd_deque
 from _collections import deque
 
 def Sum_Right(array):
@@ -54,7 +54,7 @@ class data_session():
         self.cycleCmdDeque= self.dev_set.getCmdSet()
         self.cycleCmdDeque.append({"id" : 0, "cmd" : "", "dev_id" : -1})
         self.ctrlCmdDeque = deque()
-        self.errCmdDeque = errcmd_duque()
+        self.errCmdDeque = errcmd_deque()
         
     def getDataItem(self, dev_name, conf_name):
         data = self.getData(dev_name, conf_name)
