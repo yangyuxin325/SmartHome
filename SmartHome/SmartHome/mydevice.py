@@ -6,6 +6,9 @@ Created on 2015年12月16日
 @author: sanhe
 '''
 from datetime import datetime
+from UserDict import UserDict
+from basedata import data_param
+from basedata import basic_data
 __metaclass__ = type
 
 device_Dict = {}
@@ -106,37 +109,44 @@ class crc16:
         else:  
             return False
 
-class device():
-    def __init__(self):
-        self.data_dict = {}
+class device(UserDict):
+    def __init__(self,doDisConnect):
+        UserDict.__init__(self)
         self.data_linkpara = {}
         self.linkset = set()
         self.disCount = None
-        self.connectState = None
+        self.state = None
+        self.stateTime = None 
+        self.doDisConnect = doDisConnect
         
     def addData(self, conf_name, data, link_conf=None):
-        if link_conf is None:
-            self.data_dict[conf_name] = data
-        else:
-            if link_conf in self.data_dict:
+        if isinstance(data, data_param):
+            self[conf_name] = data
+            if conf_name == 'DisCount':
+                self.disCount = data.value
+                if self.disCount > 0:
+                    self.state = False
+                else:
+                    self.state = True
+                self.stateTime = data.time
+            else:
+                pass
+            if link_conf:
                 self.linkset.add(link_conf)
-                self.data_dict[conf_name] = data
                 self.data_linkpara[conf_name] = link_conf
+            else:
+                pass
+        else:
+            pass
                 
     @classmethod
     def genPratrolInstr(self, ID):
         pass
-    
-    def dataParse(self, data):
-        if self.disCount is None:
-            self.disCount = int(self.data_dict['DisCount'].getRealValue())
-            if self.disCount > 0:
-                self.connectState = True
-            else:
-                self.connectState = False
-        else:
-            self.setDisConnect(False)
                 
+    def setValue(self, conf_name ,value):
+        if self.get(conf_name):
+            self.get(conf_name).setValue(value)
+            
     def setDataValue(self, conf_name ,value):
         if conf_name in self.data_dict and self.data_dict[conf_name]:
             self.data_dict[conf_name].setValue(value)
@@ -152,12 +162,6 @@ class device():
     def getDataItem(self, conf_name):
         return self.get(conf_name)
         
-<<<<<<< HEAD
-    def getDataValue(self, conf_name):
-        item =  self.getDataItem(conf_name)
-        if item:
-            return item.getValue()
-=======
     def getDisInterval(self, conf_name):
         param = self.get(conf_name)
         if param:
@@ -172,11 +176,8 @@ class device():
         if param:
             value = param.getValue()
             interval = param.getInterval() if param.getInterval() else 0
->>>>>>> refs/remotes/origin/yang
         else:
             pass
-<<<<<<< HEAD
-=======
         if self.state :
             return value
         else:
@@ -185,59 +186,69 @@ class device():
             else:
                 pass
         
->>>>>>> refs/remotes/origin/yang
     
     def getRealValue(self, conf_name):
-        data = self.getData(conf_name)
-        return data.getRealValue()
-                        
-    def getData(self, conf_name):
-        if conf_name in self.data_dict:
-            disCount_Data = self.data_dict['DisCount'].getData()
-            if conf_name == 'DisCount':
-                return disCount_Data
-            else:
-                data = self.data_dict[conf_name].getData()
-                if data.dis_time > disCount_Data.dis_time:
-                    return data
-                else:
-                    data.dis_flag = disCount_Data.dis_flag
-                    data.dis_time = disCount_Data.dis_time
-                    return data
+        if self.get(conf_name):
+            return self.get(conf_name).value
         else:
             pass
     
     def setData(self, conf_name, data):
-        self.data_dict[conf_name] = data
+        if isinstance(data, basic_data) and self.get(conf_name):
+            self.get(conf_name).setData(data)
+            if conf_name == 'DisCount':
+                self.disCount = data.value
+                state = None
+                if self.disCount > 0:
+                    state = False
+                else:
+                    state = True
+                stateTime = data.time
+                self.setConnectState(state, stateTime)
+            else:
+                pass
+        else:
+            pass
                         
     def setDisConnect(self, flag):
-        if self.disCount is None:
-            self.disCount = int(self.data_dict['DisCount'].getRealValue())
-            if self.disCount >= int(self.data_dict['DisCount'].getConstraint().min_variation):
-                self.connectState = False
-            else:
-                self.connectState = True
+        state = self.state
         if flag is False and self.disCount != 0:
             self.disCount = 0
-            self.setDataValue('DisCount',self.disCount)
-            self.connectState = True
+            self.setValue('DisCount',self.disCount)
+            state = True
         elif flag is True:
             self.disCount = self.disCount + 1
-            if int(self.data_dict['DisCount'].getRealValue()) == 0:
-                self.setDataValue('DisCount',self.disCount)
-                if self.data_dict['DisCount'].getRealValue() > 0:
-                    self.connectState = False
-                    data = self.data_dict['DisCount'].getData()
-                    data.dis_flag = True
-                    data.dis_time = datetime.now()
-                    self.data_dict['DisCount'].setData(data)
+            if int(self['DisCount'].value) == 0:
+                self.setValue('DisCount',self.disCount)
+                if self.get('DisCount').value > 0:
+                    state = False
                 else:
                     pass
             else:
                 pass
+        else:
+            pass
+        if state != self.state:
+            self.state = state
+            if state is False:
+                self.doDisConnect(self)
+            else:
+                pass
+        else:
+            pass
                     
     def getConnectState(self):
-        return self.connectState
+        return self.state
+    
+    def setConnectState(self, state, stateTime):
+        self.state = state
+        self.stateTime = stateTime
+        
+    def setDisFlag(self, conf_name):
+        if conf_name in self:
+                self[conf_name].setChangeFlag(3)
+        else:
+            pass
     
 class infrared(device):
     
@@ -248,8 +259,8 @@ class infrared(device):
         "LED_URGENT" : 3 ,
                          }
     
-    def __init__(self):
-        device.__init__(self)
+    def __init__(self,doDisConnect):
+        device.__init__(self,doDisConnect)
         self.data_dict = {
                     'YWren' : None,
                     'LedState' : None,
@@ -284,7 +295,6 @@ class infrared(device):
         return self.checkSum(data)
     
     def dataParse(self, data):
-        device.dataParse(self, data)
         try:
             YWren = (data[3] & 3)
             LedState = ((data[3] & 12) >> 2)
@@ -296,20 +306,20 @@ class infrared(device):
                 Temperature = -self.Temperature
             Humidity = float(data[9]) + float(data[10]) / 100.0
             Lux = data[14] * 256 + data[15]
-            self.setDataValue('YWren', YWren)
-            self.setDataValue('LedState', LedState)
-            self.setDataValue('DoorState', DoorState)
-            self.setDataValue('InfoTime', InfoTime)
-            self.setDataValue('Temperature', Temperature)
-            self.setDataValue('Humidity', Humidity)
-            self.setDataValue('Lux', Lux)
+            self.setValue('YWren', YWren)
+            self.setValue('LedState', LedState)
+            self.setValue('DoorState', DoorState)
+            self.setValue('InfoTime', InfoTime)
+            self.setValue('Temperature', Temperature)
+            self.setValue('Humidity', Humidity)
+            self.setValue('Lux', Lux)
         except Exception as e:
             print "infrared dataParse Error : ", e
 
 class co2(device):
     
-    def __init__(self):
-        device.__init__(self)
+    def __init__(self,doDisConnect):
+        device.__init__(self,doDisConnect)
         self.data_dict = {
                     'CO2' : None,
                     'DisCount' : None,
@@ -322,10 +332,9 @@ class co2(device):
         return [crc.createarray(data)]
     
     def dataParse(self, data):
-        device.dataParse(self, data)
         try :
             CO2 = data[3]*256 + data[4]
-            self.setDataValue('CO2', CO2)
+            self.setValue('CO2', CO2)
         except Exception as e:
             print "co2 dataParse Error : ", e
             
@@ -351,8 +360,8 @@ class stc_1(device):
                    8 : lambda x : (x - 400) * 8.0 / 160.0 - 20.0,     # /*温度：-20——60*/
                    }
     
-    def __init__(self):
-        device.__init__(self)
+    def __init__(self,doDisConnect):
+        device.__init__(self,doDisConnect)
         self.data_dict = {
                     'DisCount' : None,
                     }
@@ -421,7 +430,7 @@ class stc_1(device):
                 else:
                     val = (data[4] & (1 << (i - 8))) >> (i - 8)
                 str_name = str_first + str(i+1)
-                self.setDataValue(str_name, val)
+                self.setValue(str_name, val)
         except Exception as e:
             print e
             
@@ -429,8 +438,8 @@ class stc_1(device):
         try:
             val1 = data[3] << 8 + data[4]
             val2 = data[5] << 8 + data[6]
-            self.setDataValue('AO1', val1)
-            self.setDataValue('AO2', val2)
+            self.setValue('AO1', val1)
+            self.setValue('AO2', val2)
         except Exception as e:
             print e
         
@@ -443,13 +452,12 @@ class stc_1(device):
                 str_name = str_first + str(i+1)
                 if str_name in self._Algorithm_dict.keys():
                     val = self._Algorithm_dict[str_name](val)
-                self.setDataValue(str_name, val)
+                self.setValue(str_name, val)
         except Exception as e:
             print "_AIParse : ", e
         
     def dataParse(self, data):
         try :
-            device.dataParse(self, data)
             self._Parsedict[data[1]](data)
         except Exception as e:
             print "mokuai dataParse :", e
@@ -463,8 +471,8 @@ class stc_201(device):
         'AI' : (4, 19),
                 }
     
-    def __init__(self):
-        device.__init__(self)
+    def __init__(self,doDisConnect):
+        device.__init__(self,doDisConnect)
         self.data_dict = {
                     'DisCount' : None,
                     }
@@ -534,7 +542,7 @@ class stc_201(device):
                 else:
                     val = (data[4] & (1 << (i - port_nums))) >> (i - port_nums)
                 str_name = str_first + str(i+1)
-                self.setDataValue(str_name, val)
+                self.setValue(str_name, val)
                 print str_name,val
         except Exception as e:
             print e
@@ -546,6 +554,7 @@ class stc_201(device):
             for i in range(data[2]/2):
                 val = (data[i*2+4] << 8) + data[i*2+3]
                 str_name = str_first + str(i+1)
+                self.setValue(str_name, val)
                 print str_name, val
         except Exception as e:
             print e
@@ -563,13 +572,13 @@ class stc_201(device):
                     val = val / 100.0
                 elif i == 15 or i > 16 :
                     val = val / 1000.0
+                self.setValue(str_name, val)
                 print str_name, val
         except Exception as e:
             print "_AIParse : ", e
             
     def dataParse(self, data):
         try :
-            device.dataParse(self, data)
             self._Parsedict[data[1]](data)
         except Exception as e:
             print "mokuai dataParse :", e
@@ -594,8 +603,8 @@ class plc(device):
                    8 : lambda x : (x - 400) * 8.0 / 160.0 - 20.0,     # /*温度：-20——60*/
                    }
     
-    def __init__(self):
-        device.__init__(self)
+    def __init__(self,doDisConnect):
+        device.__init__(self,doDisConnect)
         self.data_dict = {
                     'DisCount' : None,
                     }
@@ -662,13 +671,13 @@ class plc(device):
             else:
                 val = (data[4] & (1 << (i - 8))) >> (i - 8)
             str_name = str_first + str(i+1)
-            self.setDataValue(str_name, val)
+            self.self.setValue(str_name, val)
             
     def _AOparse(self, data):
         val1 = (data[3] << 8) + data[4]
         val2 = (data[5] << 8) + data[6]
-        self.setDataValue('AO1', val1)
-        self.setDataValue('AO2', val2)
+        self.setValue('AO1', val1)
+        self.setValue('AO2', val2)
         
     def _AIParse(self, data):
         str_first = 'AI'
@@ -678,11 +687,10 @@ class plc(device):
             str_name = str_first + str(i+1)
             if str_name in self._Algorithm_dict.keys():
                 val = self._Algorithm_dict[str_name](val)
-            self.setDataValue(str_name, val)
+            self.setValue(str_name, val)
             
     def dataParse(self, data):
         try :
-            device.dataParse(self, data)
             self._Parsedict[data[1]](data)
         except Exception as e:
             print "plc dataParse :", e
@@ -695,8 +703,8 @@ class sansu(device):
         "Fa2"    : 0x66 ,
                          }
     
-    def __init__(self):
-        device.__init__(self)
+    def __init__(self,doDisConnect):
+        device.__init__(self,doDisConnect)
         self.data_dict = {
                     'Wind' : None,
                     'Fa1' : None,
@@ -724,9 +732,9 @@ class sansu(device):
             Wind = data[3]*256 + data[4]
             Fa1 = data[5]*256 + data[6]
             Fa2 = data[7]*256 + data[8]
-            self.setDataValue('Wind', Wind)
-            self.setDataValue('Fa1', Fa1)
-            self.setDataValue('Fa2', Fa2)
+            self.setValue('Wind', Wind)
+            self.setValue('Fa1', Fa1)
+            self.setValue('Fa2', Fa2)
         except Exception as e:
             print "sansu dataParse Error : ", e
             
@@ -742,8 +750,8 @@ class triplecng(device):
         "WB_Diff" :  (44314,1) ,
                          }
     
-    def __init__(self):
-        device.__init__(self)
+    def __init__(self,doDisConnect):
+        device.__init__(self,doDisConnect)
         self.data_dict = {
                     '1_1' : None,
                     '2_1Error' : None,
@@ -911,79 +919,79 @@ class triplecng(device):
             str_name = str_type + '_'
             if data_type == 1 : 
                 str_temp = str_name + str(1)
-                self.setDataValue(str_temp, data[3] << 8 + data[4])
+                self.setValue(str_temp, data[3] << 8 + data[4])
             elif data_type == 2 :
                 for i in range(32) :
                     str_temp = str_name + str(i+1) + 'Error'
                     if i < 8:
-                        self.setDataValue(str_temp,(data[3] & (1 << i)) >> i) 
+                        self.setValue(str_temp,(data[3] & (1 << i)) >> i) 
                     elif i < 16:
-                        self.setDataValue(str_temp,(data[4] & (1 << (i-8))) >> (i-8))
+                        self.setValue(str_temp,(data[4] & (1 << (i-8))) >> (i-8))
                     elif i < 24:
-                        self.setDataValue(str_temp,(data[5] & (1 << (i-16))) >> (i-16))
+                        self.setValue(str_temp,(data[5] & (1 << (i-16))) >> (i-16))
                     else:
-                        self.setDataValue(str_temp,(data[6] & (1 << (i-24))) >> (i-24))
+                        self.setValue(str_temp,(data[6] & (1 << (i-24))) >> (i-24))
             elif data_type == 4 :
                 for i in range(4) :
                     str_temp = str_name + str(i+1)
                     if i ==  1 :
-                        self.setDataValue(str_temp,(data[i*2+3] << 8) + data[i*2+4])
+                        self.setValue(str_temp,(data[i*2+3] << 8) + data[i*2+4])
                     else :
                         if 0xff == data[i*2+3]:
-                            self.setDataValue(str_temp,((data[i*2+3] << 8) + data[i*2+4] - 65536)//10)
+                            self.setValue(str_temp,((data[i*2+3] << 8) + data[i*2+4] - 65536)//10)
                         else:
-                            self.setDataValue(str_temp,((data[i*2+3] << 8) + data[i*2+4])//10)
+                            self.setValue(str_temp,((data[i*2+3] << 8) + data[i*2+4])//10)
             elif data_type == 5 :
                 for i in range(5) :
                     str_temp = str_name + str(i+1)
-                    self.setDataValue(str_temp,((data[i*2+3] << 8) + data[i*2+4])//10)
+                    self.setValue(str_temp,((data[i*2+3] << 8) + data[i*2+4])//10)
             elif data_type == 6 :
                 for i in range(5) :
                     str_temp = str_name + str(i+1)
                     if i ==  0 or i == 1 :
-                        self.setDataValue(str_temp,(data[i*2+3] << 8) + data[i*2+4])
+                        self.setValue(str_temp,(data[i*2+3] << 8) + data[i*2+4])
                     else :
                         if 0xff == data[i*2+3]:
-                            self.setDataValue(str_temp,((data[i*2+3] << 8) + data[i*2+4] - 65536)//10)
+                            self.setValue(str_temp,((data[i*2+3] << 8) + data[i*2+4] - 65536)//10)
                         else:
-                            self.setDataValue(str_temp,((data[i*2+3] << 8) + data[i*2+4])//10)
+                            self.setValue(str_temp,((data[i*2+3] << 8) + data[i*2+4])//10)
             elif data_type == 7 :
                 for i in range(6) :
                     str_temp = str_name + str(i+1)
                     if i ==  0 or i == 2 or i == 4 :
-                        self.setDataValue(str_temp,(data[i*2+3] << 8) + data[i*2+4])
+                        self.setValue(str_temp,(data[i*2+3] << 8) + data[i*2+4])
                     else :
                         if 0xff == data[i*2+3]:
-                            self.setDataValue(str_temp,((data[i*2+3] << 8) + data[i*2+4] - 65536)//10)
+                            self.setValue(str_temp,((data[i*2+3] << 8) + data[i*2+4] - 65536)//10)
                         else:
-                            self.setDataValue(str_temp,((data[i*2+3] << 8) + data[i*2+4])//10)
+                            self.setValue(str_temp,((data[i*2+3] << 8) + data[i*2+4])//10)
             elif data_type == 15 : 
                 for i in range(15) :
                     str_temp = str_name + str(i+1)
-                    self.setDataValue(str_temp,(data[i*2+3] << 8) + data[i*2+4])
+                    self.setValue(str_temp,(data[i*2+3] << 8) + data[i*2+4])
             elif data_type == 16 : 
                 for i in range(16) :
                     str_temp = str_name + str(i+1)
-                    self.setDataValue(str_temp,((data[i*2+3] << 8) + data[i*2+4])//10)
+                    self.setValue(str_temp,((data[i*2+3] << 8) + data[i*2+4])//10)
             elif data_type == 25 : 
                 for i in range(25) :
 #                     print "line",i,": ",data[i*2+3]<<8,data[i*2+4]
                     str_temp = str_name + str(i+1)
                     if 5<= i <= 6 or 9 == i or 13 == i or 17 == i or 24 == i:
                         if 0xff == data[i*2+3]:
-                            self.setDataValue(str_temp,((data[i*2+3] << 8) + data[i*2+4] - 65536)//10)
+                            self.setValue(str_temp,((data[i*2+3] << 8) + data[i*2+4] - 65536)//10)
                         else:
-                            self.setDataValue(str_temp,((data[i*2+3] << 8) + data[i*2+4])//10)
+                            self.setValue(str_temp,((data[i*2+3] << 8) + data[i*2+4])//10)
                     else:
-                        self.setDataValue(str_temp,(data[i*2+3] << 8) + data[i*2+4])
+                        self.setValue(str_temp,(data[i*2+3] << 8) + data[i*2+4])
         except Exception as e:
             print "triplecng dataParse Error : ", e
             
 
 class voc(device):
     
-    def __init__(self):
-        device.__init__(self)
+    def __init__(self,doDisConnect):
+        device.__init__(self,doDisConnect)
         self.data_dict = {
                     'VOC' : None,
                     'Temperature' : None,
@@ -998,14 +1006,13 @@ class voc(device):
         return [crc.createarray(data)]
     
     def dataParse(self, data):
-        device.dataParse(self, data)
         try:
             VOC = (data[3]*256 + data[4])/10.0
             Temperature = (data[5]*256 + data[6])/10.0
             Humidity = data[7]*256+data[8]
-            self.setDataValue('VOC', VOC)
-            self.setDataValue('Temperature', Temperature)
-            self.setDataValue('Humidity', Humidity)
+            self.setValue('VOC', VOC)
+            self.setValue('Temperature', Temperature)
+            self.setValue('Humidity', Humidity)
         except Exception as e:
             print "co2 dataParse Error : ", e
 
@@ -1018,8 +1025,8 @@ class wenkong(device):
         "Wind"    : 5 ,
                          }
     
-    def __init__(self):
-        device.__init__(self)
+    def __init__(self,doDisConnect):
+        device.__init__(self,doDisConnect)
         self.data_dict = {
                     'OnOff' : None,
                     'Mode' : None,
@@ -1047,20 +1054,19 @@ class wenkong(device):
         return crc.createarray(data)
     
     def dataParse(self, data):
-        device.dataParse(self, data)
         try :
             OnOff = data[4]
             Mode = data[5] * 256 + data[6]
             SetTemp = data[7] + data[8]/10.0
             Wind = data[9]*256 + data[10]
             Temp = data[17] + data[18]/10.0
-            self.setDataValue('OnOff', OnOff)
-            self.setDataValue('Mode', Mode)
-            self.setDataValue('SetTemp', SetTemp)
-            self.setDataValue('Wind', Wind)
-            self.setDataValue('Temperature', Temp)
-            p_onff = self.getDataValue('Program_OnOff')
-            c_mode = self.getDataValue('Control_Mode')
+            self.setValue('OnOff', OnOff)
+            self.setValue('Mode', Mode)
+            self.setValue('SetTemp', SetTemp)
+            self.setValue('Wind', Wind)
+            self.setValue('Temperature', Temp)
+            p_onff = self.getValue('Program_OnOff')
+            c_mode = self.getValue('Control_Mode')
             if p_onff is not None and c_mode is not None:
                 if (p_onff & 1) == OnOff :
                     self.setControlData('Control_Mode', 1)
@@ -1073,14 +1079,14 @@ class wenkong(device):
         if dataname not in ['Control_Mode','Program_OnOff']:
             err = "There is not a {} in wenkong's ControlData".format(dataname)
             raise Exception(err)
-        self._setDataValue(self, dataname, value)
+        self.setValue(self, dataname, value)
         
 device_Dict['ZMA194E'] = '三相电表'
 
 class ZMA194E(device):
 
-    def __init__(self):
-        device.__init__(self)
+    def __init__(self,doDisConnect):
+        device.__init__(self,doDisConnect)
         self.data_dict = {
                           'DO1' : None,
                           'DO2' : None,
@@ -1123,18 +1129,17 @@ class ZMA194E(device):
     
     def dataParse(self, data):
         import struct
-        device.dataParse(self, data)
         try :
             data_type = data[2]//2
             if data_type == 3:
-                self.setDataValue('DI4', (data[6] & 0x08) >> 3)
-                self.setDataValue('DI3', (data[6] & 0x04) >> 2)
-                self.setDataValue('DI2', (data[6] & 0x02) >> 1)
-                self.setDataValue('DI1', data[6] & 0x01)
-                self.setDataValue('DO4', (data[8] & 0x08) >> 3)
-                self.setDataValue('DO3', (data[8] & 0x04) >> 2)
-                self.setDataValue('DO2', (data[8] & 0x02) >> 1)
-                self.setDataValue('DO1', data[8] & 0x01)
+                self.setValue('DI4', (data[6] & 0x08) >> 3)
+                self.setValue('DI3', (data[6] & 0x04) >> 2)
+                self.setValue('DI2', (data[6] & 0x02) >> 1)
+                self.setValue('DI1', data[6] & 0x01)
+                self.setValue('DO4', (data[8] & 0x08) >> 3)
+                self.setValue('DO3', (data[8] & 0x04) >> 2)
+                self.setValue('DO2', (data[8] & 0x02) >> 1)
+                self.setValue('DO1', data[8] & 0x01)
             elif data_type == 26:
                 RMSUA = None
                 RMSUB = None
@@ -1151,45 +1156,45 @@ class ZMA194E(device):
                         value = struct.unpack('!f',strdata)[0]
                         if i == 0:
                             RMSUA = value
-                            self.setDataValue('RMSUA', value)
+                            self.setValue('RMSUA', value)
                         elif i == 1:
                             RMSUB = value
-                            self.setDataValue('RMSUB', value)
+                            self.setValue('RMSUB', value)
                         elif i == 2:
                             RMSUC = value
-                            self.setDataValue('RMSUC', value)
+                            self.setValue('RMSUC', value)
                         elif i == 6:
                             RMSIA = value
-                            self.setDataValue('RMSIA', value)
+                            self.setValue('RMSIA', value)
                         elif i == 7:
                             RMSIB = value
-                            self.setDataValue('RMSIB', value)
+                            self.setValue('RMSIB', value)
                         elif i == 8:
                             RMSIC = value
-                            self.setDataValue('RMSIC', value)
+                            self.setValue('RMSIC', value)
                         elif i == 12:
-                            self.setDataValue('Psum', value)
+                            self.setValue('Psum', value)
                 import math                            
                 Udiff = max(math.fabs(RMSUA - RMSUB), math.fabs(RMSUA - RMSUC), math.fabs(RMSUB - RMSUC))
                 Idiff = max(math.fabs(RMSIA - RMSIB), math.fabs(RMSIA - RMSIC), math.fabs(RMSIB - RMSIC))
-                self.setDataValue('Udiff', Udiff)
-                self.setDataValue('Idiff', Idiff)
+                self.setValue('Udiff', Udiff)
+                self.setValue('Idiff', Idiff)
             elif data_type == 18:
                 strdata = ''
                 for j in data[3:7]:
                     strdata = strdata + chr(j)
                 value = struct.unpack('!f',strdata)[0]
-                self.setDataValue('Pfsum', value)
+                self.setValue('Pfsum', value)
                 strdata = ''
                 for j in data[19:23]:
                     strdata = strdata + chr(j)
                 value = struct.unpack('!f',strdata)[0]
-                self.setDataValue('FreqA', value)
+                self.setValue('FreqA', value)
             elif data_type == 2:
                 strdata = ''
                 for j in data[3:7]:
                     strdata = strdata + chr(j)
                 value = struct.unpack('!f',strdata)[0]
-                self.setDataValue('WH-1', value)
+                self.setValue('WH-1', value)
         except Exception as e:
             print "ZMA194E dataParse Error : ", e

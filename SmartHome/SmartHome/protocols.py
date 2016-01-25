@@ -30,11 +30,11 @@ def packDataInfo(data,reason,code):
         body['time'] = str(data.time)[:19]
         body['dis_flag'] = data.dis_flag
         body['dis_time'] = str(data.dis_time)[:19]
-        if data.ename in SmartServer.data_server.dataPriors:
-            body['prior_flag'] = True
-            body['prior'] = SmartServer.data_server.dataPriors[data.ename]
-        else:
-            body['prior_flag'] = False
+#         if data.ename in SmartServer.data_server.dataPriors:
+#             body['prior_flag'] = True
+#             body['prior'] = SmartServer.data_server.dataPriors[data.ename]
+#         else:
+#             body['prior_flag'] = False
         if reason:
             body['reason_flag'] = True
             rs_body = {}

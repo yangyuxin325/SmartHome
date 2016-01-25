@@ -11,8 +11,8 @@ from datetime import datetime
 
 def doDataProcess(session):
     for dev in session.dev_set.dev_dict.values():
-        for data_param in dev.data_dict.values():
-            if data_param :
+        for conf_name in dev.data_dict.keys():
+            dev.getData(conf_name)
                 if data_param.isChanged():
                     session.putResultQueue(handlers.doDataParam,data_param)
                 else:

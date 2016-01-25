@@ -1,55 +1,25 @@
 #coding=utf-8
 #!/usr/bin/env python
 '''
-Created on 2015年12月15日
+Created on 2016年1月21日
 
 @author: sanhe
 '''
 from datetime import datetime
+from UserDict import UserDict
 import math
 __metaclass__ = type
-class data_conf():
-    def __init__(self, ename, cname, server_name, data_type, sess_name=None, dev_name=None, conf_name=None):
-        self.data_ename = ename
-        self.data_cname = cname
-        self.server_name = server_name
-        self.data_type = data_type
-        self.session_name = sess_name
-        self.device_name = dev_name
-        self.conf_name = conf_name
-        
-class data_constraint():
-    def __init__(self, min_variation, min_val, max_val, dis_interval):
-        self.min_variation = min_variation
-        self.min_val = min_val
-        self.max_val = max_val
-        self.dis_interval = dis_interval
-        
-    def __eq__(self,other):
-        if self.min_variation != other.min_variation or \
-            self.min_val != other.min_val or \
-            self.max_val != other.max_val or \
-            self.dis_interval != other.dis_interval:
-            return False
-        else:
-            return True
-        
-    def __ne__(self,other):
-        return not (self == other)
         
 class basic_data():
-    def __init__(self, ename, value=None, error_flag=False, time=None, dis_flag=True, dis_time=None):
+    def __init__(self, ename, value=None, error_flag=False, time=None):
         self.ename = ename
         self.value = value
         self.error_flag = error_flag
         self.time = time
-        self.dis_flag = dis_flag
-        self.dis_time = dis_time
         
     def __eq__(self,other):
         if self.value != other.value or \
-            self.error_flag != other.error_flag or \
-            self.dis_flag != other.dis_flag:
+            self.error_flag != other.error_flag:
             return False
         else:
             return True
@@ -58,34 +28,47 @@ class basic_data():
         return not (self == other)
     
     def __str__(self):
-        return '{ename : %s, value : %s, error_flag : %s, time : %s, dis_flag : %s, dis_time : %s}' \
-            (self.ename,str(self.value),str(self.error_flag),str(self.time),str(self.dis_flag),str(self.dis_time))
+        return '{ename : %s, value : %s, error_flag : %s, time : %s}' \
+            % (str(self.ename),str(self.value),str(self.error_flag),str(self.time))
         
-class data_param():
-    def __init__(self, data, constraint, write_value=None, write_time=None, minute=None):
-        self.__data = data
-        self.__ischanged = False
+class data_param(basic_data):
+    def __init__(self, ename, constraint, value=None, error_flag=False, time=None, doWriteReturn = None, minute= None):
+        basic_data.__init__(self, ename, value, error_flag, time)
+        self.__changeFlag = 0
         self.__constraint = constraint
-        self.write_value = write_value
-        self.write_time = write_time
-        self.write_Return = None
+        if isinstance(constraint, UserDict):
+            pass
+        else:
+            self.__constraint = UserDict()
+        self.doWriteReturn = doWriteReturn
+        self.write_value = None
+        self.write_time = None
         self.__minute = minute
         if self.__minute is not None:
             self.__total = 0
             self.__count = 0
             self.__start_time = None
         self.__reason = None
+    
+    def __str__(self):
+        return '{ename : %s, value : %s, error_flag : %s, time : %s}' \
+            % (self.ename,str(self.value),str(self.error_flag),str(self.time))
 
     def setData(self, data):
-        if self.__data != data:
-            self.__ischanged = True
-            self.__data = data
-            if self.write_Return is False:
-                if self.__data.value == self.write_value:
-                    self.write_Return = True
+        if isinstance(data, basic_data):
+            self.value = data.value
+            self.error_flag = data.error_flag
+            self.time = data.time
+            if self.value == self.write_value and self.doWriteReturn:
+                self.doWriteReturn(self)
+        else:
+            pass
                     
     def getData(self):
         return self.__data
+    
+    def getDisInterval(self):
+        return self.__constraint['dis_interval']
         
     def setConstraint(self, constraint):
         if self.__constraint != constraint:
@@ -95,63 +78,59 @@ class data_param():
     def getConstraint(self):
         return self.__constraint
     
-    def isChanged(self):
-        return self.__ischanged
+    def getChangeFlag(self):
+        return self.__changeFlag
+    
+    def setChangeFlag(self, flag):
+        self.__changeFlag = flag
     
     def setValue(self, value):
-        flag = False
-        if self.__minute is None:
-            if self.__data.value is None and self.__data.value != value:
-                self.__data.value = value
-                if value < self.__constraint.min_val or value > self.__constraint.max_val:
-                    self.__data.error_flag = True
-                self.__data.time = datetime.now()
-                self.__data.dis_flag = False
-                self.__data.dis_time = datetime.now()
-                flag = True
-            else:
-                if math.fabs(self.__data.value - value) > self.__constraint.min_variation:
-                    self.__data.value = value
-                    if value < self.__constraint.min_val or value > self.__constraint.max_val:
-                        self.__data.error_flag = True
-                    else:
-                        self.__data.error_flag = False
-                    flag = True
-                if self.__data.dis_flag is True:
-                    self.__data.dis_flag = False
-                    self.__data.dis_time = datetime.now()
-                    flag = True
+        error_flag = self.error_flag
+        if value:
+            if self.__constraint['min_val'] and self.__constraint['max_val']:
+                if value < self.__constraint['min_val'] or value > self.__constraint['max_val']:
+                    error_flag = True
+                else:
+                    error_flag = False
         else:
-            if value is not None:
-                if self.__constraint.min_val <= value <= self.__constraint.max_val:
-                    self.__total = self.__total + value
-                    self.__count = self.__count + 1
-                    if self.__start_time is None:
-                        self.__start_time = datetime.now()
+            pass
+        if not self.__minute:
+            if error_flag != self.error_flag:
+                self.value = value
+                self.__changeFlag = 2
+                self.time = datetime.now()
+            elif not self.value or math.fabs(value - self.value) > self.__constraint['min_variation']:
+                self.value = value
+                self.__changeFlag = 1
+                self.time = datetime.now()
+            else:
+                self.__changeFlag = 0
+        else:
+            if not error_flag:
+                self.__total = self.__total + value
+                self.__count = self.__count + 1
+                if self.__start_time:
                     if (datetime.now() - self.__start_time).total_seconds() >= self.__minute * 60:
                         ave_value = self.__total / self.__count
                         self.__start_time = None
-                        if self.__data.value is None:
-                            self.__data.value = ave_value
-                            self.__data.time = datetime.now()
-                        elif (math.fabs(self.__data.value - ave_value) - self.__constraint.min_variation) > 0:
-                            self.__data.value = ave_value
-                            self.__data.time = datetime.now()
-                            if self.__data.dis_flag is True:
-                                self.__data.dis_flag = False
-                                self.__data.dis_time = datetime.now()
-                            flag = True
-        self.__ischanged = flag    
+                        if not self.value or math.fabs(value - self.value) > self.__constraint['min_variation']:
+                            self.value = ave_value
+                            self.__changeFlag = 1
+                            self.time = datetime.now()
+                        else:
+                            pass
+                    else:
+                        pass
+                else:
+                    self.__start_time = datetime.now()
+            else:
+                pass
                             
     def getValue(self):
-        if self.__data.error_flag is False and self.__data.dis_flag is False:
-            return self.__data.value
-        elif self.__data.error_flag is False and self.__data.dis_flag is True:
-            if (datetime.now() - self.__data.dis_time).total_seconds() > self.__constraint.interval * 60:
-                return self.__data.value
-            
-    def getRealValue(self):
-        return self.__data.value
+        if not self.error_flag:
+            return self.value
+        else:
+            pass
     
     def setWriteValue(self, value):
         readvalue = self.getValue()
@@ -159,7 +138,6 @@ class data_param():
             if readvalue != value:
                 self.write_value = value
                 self.write_time = datetime.now()
-                self.write_Return = False
                 return self.write_value
             
     def setReason(self, reason):

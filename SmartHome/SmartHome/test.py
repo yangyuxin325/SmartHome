@@ -20,6 +20,7 @@ from SmartServer import Server_Param
 import struct
 import json
 import asyncore
+from collections import deque
 
 def handleData(sockSession):
     pass

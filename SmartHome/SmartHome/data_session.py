@@ -12,8 +12,8 @@ from greenlet import greenlet
 from datetime import datetime
 from com_handlers import doDataProcess
 from com_handlers import doSessionState
-from errcmd_deque import errcmd_deque
-from _collections import deque
+from SmartHome import errcmd_deque
+from collections import deque
 
 def Sum_Right(array):
     check_sum = 0
@@ -33,6 +33,11 @@ class data_session():
         self.baudrate = 9600
         self.interval = 0.5
         self.dev_set = dev_set
+        self.cycleCmdList = self.dev_set.getCmdSet()
+        self.cycleCmdList.append({"id" : 0, "cmd" : "", "dev_id" : -1})
+        self.ctrlCmdList = []
+        
+        self.errCmdList = []
         self.errStartTime = time.time()
         self.resultQueue = multiprocessing.Queue()
         self.taskQueue = multiprocessing.Queue()
@@ -40,9 +45,9 @@ class data_session():
         self.tLock = multiprocessing.Lock()
         self.handleTask = handleTask
         self.alive = False
+        self.state = False
+        self.stateTime = None
         self.com = None
-        self.useflag = False
-        self.dis_time = None
         self.periods = None
         
         self.errcmd = None
@@ -75,7 +80,7 @@ class data_session():
         return data.getRealValue()
         
     def getData(self, dev_name, conf_name):
-        if self.useflag:
+        if True:
             data = self.dev_set.getData(dev_name, conf_name)
             if data.dis_time < self.dis_time:
                 if self.alive is False:
@@ -141,7 +146,6 @@ class data_session():
             print 'Open %s , %s Serial fail' % (self.session_name, self.port)
             
     def isOpen(self):
-        self.useflag = True
         if self.com :
             return self.com.isOpen()
         
@@ -212,7 +216,6 @@ class data_session():
         if(type(self.com) != type(None)):
             self.alive = False
             doSessionState(self,self.alive)
-            self.dis_time = datetime.now()
             self.com.close()
         else:
             pass
