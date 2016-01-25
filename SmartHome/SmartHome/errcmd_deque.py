@@ -7,13 +7,13 @@ Created on 2016年1月22日
 '''
 from collections import deque
 
-class errcmd_duque():
+class errcmd_deque():
     def __init__(self):
         self.errcmd = {}
-        self.id_dueue = deque()
+        self.id_deque = deque()
 
     def push(self , cmd):
-        self.id_dueue.append(cmd['dev_id'])
+        self.id_deque.append(cmd['dev_id'])
         if self.errcmd.has_key(cmd['dev_id']):
             self.errcmd[cmd['dev_id']].append(cmd)
         else:
@@ -21,8 +21,8 @@ class errcmd_duque():
             self.errcmd[cmd['dev_id']].append(cmd)
     
     def popcmd(self):
-        if len(self.id_dueue) > 0:
-            dev_id = self.id_dueue.pop()
+        if len(self.id_deque) > 0:
+            dev_id = self.id_deque.pop()
             if len(self.errcmd[dev_id]) > 0:
                 data = self.errcmd[dev_id].popleft()
                 if len(self.errcmd[dev_id]) <= 0:
@@ -33,7 +33,7 @@ class errcmd_duque():
         if len(self.errcmd[dev_id]) > 0:
             data = self.errcmd[dev_id]
             del self.errcmd[dev_id]
-            self.id_dueue.remove(dev_id)
+            self.id_deque.remove(dev_id)
             return data
         
     def popcmdall(self):
@@ -43,7 +43,7 @@ class errcmd_duque():
         for i  in self.errcmd:
             m_deque.append(self.errcmd[i])
         self.errcmd.clear()
-        self.id_dueue.clear()
+        self.id_deque.clear()
         return m_deque
     
     def empty(self):
