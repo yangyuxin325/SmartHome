@@ -56,10 +56,13 @@ class data_session():
         self.ctrlCmdDeque = deque()
         self.errCmdDeque = errcmd_deque()
         
+    def getDisInterval(self, dev_name, conf_name):
+        return self.dev_set.getDisInterval()
+        
     def getDataItem(self, dev_name, conf_name):
         data = self.getData(dev_name, conf_name)
         if data:
-            dataitem = self.dev_set.getDeviceDataItem(dev_name, conf_name)
+            dataitem = self.dev_set.getDataItem(dev_name, conf_name)
             dataitem.setData(data)
             return dataitem
         else:

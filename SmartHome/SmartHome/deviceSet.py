@@ -134,29 +134,30 @@ class deviceSet(UserDict):
                         pass
             sqlConnection.close()
             
-    def getValue(self, dev_name, conf_name):
+    def getDeviceData(self, dev_name):
         if dev_name in self.name_idMap:
-            dev = self.get(self.name_idMap[dev_name])
-            if dev:
-                dev.getValue(conf_name)
+            return self.get(self.name_idMap[dev_name])
+        else:
+            pass
+            
+    def getValue(self, dev_name, conf_name):
+        dev_data = self.getDeviceData(dev_name)
+        if dev_data:
+            return dev_data.getValue(conf_name)
         else:
             pass
         
     def getRealValue(self, dev_name, conf_name):
-        if dev_name in self.name_idMap:
-            dev = self.get(self.name_idMap[dev_name])
-            if dev:
-                dev.getRealValue(conf_name)
+        dev_data = self.getDeviceData(dev_name)
+        if dev_data:
+            return dev_data.getRealValue(conf_name)
         else:
             pass
             
     def getData(self, dev_name, conf_name):
-        if dev_name in self.name_idMap:
-            dev = self.get(self.name_idMap[dev_name])
-            if dev:
-                return dev.get(conf_name)
-            else:
-                pass
+        dev_data = self.getDeviceData(dev_name)
+        if dev_data:
+            return dev_data.get(conf_name)
         else:
             pass
         
@@ -175,7 +176,7 @@ class deviceSet(UserDict):
     
     def getConnectState(self, key):
         if self.get(key):
-            return self.get(key)
+            return self.get(key).getConnectState()
         else:
             pass
     
