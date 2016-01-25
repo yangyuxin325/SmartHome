@@ -7,7 +7,7 @@ Created on 2016年1月22日
 '''
 from collections import deque
 
-class errcmd_duque():
+class errcmd_deque():
     def __init__(self):
         self.errcmd = {}
         self.id_dueue = deque()
