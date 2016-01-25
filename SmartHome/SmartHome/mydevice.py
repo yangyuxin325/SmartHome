@@ -150,20 +150,42 @@ class device():
             pass
     
     def getDataItem(self, conf_name):
-        data = self.getData(conf_name)
-        if data:
-            item = self.data_dict[conf_name]
-            item.setData(data)
-            return item
-        else:
-            pass
+        return self.get(conf_name)
         
+<<<<<<< HEAD
     def getDataValue(self, conf_name):
         item =  self.getDataItem(conf_name)
         if item:
             return item.getValue()
+=======
+    def getDisInterval(self, conf_name):
+        param = self.get(conf_name)
+        if param:
+            return param.getDisInterval() if param.getDisInterval() else 0
+        else:
+            return 0
+        
+    def getValue(self, conf_name):
+        param = self.getDataItem(conf_name)
+        value = None
+        interval = 0
+        if param:
+            value = param.getValue()
+            interval = param.getInterval() if param.getInterval() else 0
+>>>>>>> refs/remotes/origin/yang
         else:
             pass
+<<<<<<< HEAD
+=======
+        if self.state :
+            return value
+        else:
+            if (datetime.now() - self.stateTime).total_seconds() > interval * 60:
+                return value
+            else:
+                pass
+        
+>>>>>>> refs/remotes/origin/yang
     
     def getRealValue(self, conf_name):
         data = self.getData(conf_name)

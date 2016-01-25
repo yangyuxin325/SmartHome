@@ -99,15 +99,43 @@ class deviceSet():
                         self.dev_dict[device['dev_id']].addAlgorithm(data_conf['conf_name'],data_conf['algorithm'])
             sqlConnection.close()
             
+<<<<<<< HEAD
     def getDeviceDataItem(self, dev_name, conf_name):
+=======
+    def getDeviceData(self, dev_name):
+>>>>>>> refs/remotes/origin/yang
         if dev_name in self.name_idMap:
+<<<<<<< HEAD
             return self.device_dict[dev_name].getDataItem(conf_name)
+=======
+            return self.get(self.name_idMap[dev_name])
+        else:
+            pass
+            
+    def getValue(self, dev_name, conf_name):
+        dev_data = self.getDeviceData(dev_name)
+        if dev_data:
+            return dev_data.getValue(conf_name)
+        else:
+            pass
+        
+    def getRealValue(self, dev_name, conf_name):
+        dev_data = self.getDeviceData(dev_name)
+        if dev_data:
+            return dev_data.getRealValue(conf_name)
+>>>>>>> refs/remotes/origin/yang
         else:
             pass
             
     def getData(self, dev_name, conf_name):
+<<<<<<< HEAD
         if dev_name in self.name_idMap:
             self.device_dict[self.name_idMap[dev_name]].getData(conf_name)
+=======
+        dev_data = self.getDeviceData(dev_name)
+        if dev_data:
+            return dev_data.get(conf_name)
+>>>>>>> refs/remotes/origin/yang
         else:
             pass
         
@@ -123,9 +151,15 @@ class deviceSet():
         else:
             pass
     
+<<<<<<< HEAD
     def getConnectState(self, dev_id):
         if dev_id in self.dev_dict:
             return self.dev_dict[dev_id].getConnectState()
+=======
+    def getConnectState(self, key):
+        if self.get(key):
+            return self.get(key).getConnectState()
+>>>>>>> refs/remotes/origin/yang
         else:
             pass
     
