@@ -422,15 +422,14 @@ class UnitDataServer(data_server):
             
     def getDataSessions(self, server_name):
         if self.server_name == server_name:
-            return data_server.getDataSessions(self)
+            return data_server.dev_data
         else:
             pass
         if server_name in self.name_ip_map:
             server_ip = self.name_ip_map[server_name]
-            server = self.node_server_map[server_ip]
-            return server.getDataSessions()
+            return self.node_server_map[server_ip].dev_data
         else:
-            return []
+            return dict()
         
     def getUploadSessionState(self):
         if self.upload_Session:
@@ -655,7 +654,7 @@ class NodeDataServer(data_server):
         
     def getDataSessions(self, server_name):
         if self.server_name == server_name:
-            return data_server.getDataSessions(self)
+            return data_server.dev_data
         else:
             return []
         

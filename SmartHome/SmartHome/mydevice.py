@@ -143,17 +143,22 @@ class device(UserDict):
     def genPratrolInstr(self, ID):
         pass
                 
-    def setValue(self, conf_name ,value):
+    def __setValue(self, conf_name ,value):
         if self.get(conf_name):
-            self.get(conf_name).setValue(value)
+            self[conf_name].setValue(value)
+        else:
+            pass
+            
             
     def setDataValue(self, conf_name ,value):
-        if conf_name in self.data_dict and self.data_dict[conf_name]:
-            self.data_dict[conf_name].setValue(value)
+        if conf_name in self:
+            self.__setValue(conf_name, value)
             if conf_name in self.linkset:
                 for k,v in self.data_linkpara.items():
                     if v == conf_name:
-                        self.data_dict[k].setValue(value)
+                        self.__setValue(k,value)
+                    else:
+                        pass
             else:
                 pass
         else:
@@ -214,12 +219,12 @@ class device(UserDict):
         state = self.state
         if flag is False and self.disCount != 0:
             self.disCount = 0
-            self.setValue('DisCount',self.disCount)
+            self.setDataValue('DisCount',self.disCount)
             state = True
         elif flag is True:
             self.disCount = self.disCount + 1
             if int(self['DisCount'].value) == 0:
-                self.setValue('DisCount',self.disCount)
+                self.setDataValue('DisCount',self.disCount)
                 if self.get('DisCount').value > 0:
                     state = False
                 else:
@@ -271,6 +276,7 @@ class infrared(device):
                     'Lux' : None,
                     'DisCount' : None,
                     }
+        self.update(self.data_dict)
             
     @classmethod
     def checkSum(self, array):
@@ -306,13 +312,13 @@ class infrared(device):
                 Temperature = -self.Temperature
             Humidity = float(data[9]) + float(data[10]) / 100.0
             Lux = data[14] * 256 + data[15]
-            self.setValue('YWren', YWren)
-            self.setValue('LedState', LedState)
-            self.setValue('DoorState', DoorState)
-            self.setValue('InfoTime', InfoTime)
-            self.setValue('Temperature', Temperature)
-            self.setValue('Humidity', Humidity)
-            self.setValue('Lux', Lux)
+            self.setDataValue('YWren', YWren)
+            self.setDataValue('LedState', LedState)
+            self.setDataValue('DoorState', DoorState)
+            self.setDataValue('InfoTime', InfoTime)
+            self.setDataValue('Temperature', Temperature)
+            self.setDataValue('Humidity', Humidity)
+            self.setDataValue('Lux', Lux)
         except Exception as e:
             print "infrared dataParse Error : ", e
 
@@ -324,6 +330,7 @@ class co2(device):
                     'CO2' : None,
                     'DisCount' : None,
                     }
+        self.update(self.data_dict)
         
     @classmethod
     def genPratrolInstr(self, ID):
@@ -334,7 +341,7 @@ class co2(device):
     def dataParse(self, data):
         try :
             CO2 = data[3]*256 + data[4]
-            self.setValue('CO2', CO2)
+            self.setDataValue('CO2', CO2)
         except Exception as e:
             print "co2 dataParse Error : ", e
             
@@ -371,6 +378,7 @@ class stc_1(device):
                 for num in range(self.SUPPORTED_INSTRUCTIONS[key][1]):
                     str_name = str_fisrt + str(num+1)
                     self.data_dict.update({str_name : None})
+        self.update(self.data_dict)
         self._Algorithm_dict = {}
         
         self._Parsedict = {
@@ -430,7 +438,7 @@ class stc_1(device):
                 else:
                     val = (data[4] & (1 << (i - 8))) >> (i - 8)
                 str_name = str_first + str(i+1)
-                self.setValue(str_name, val)
+                self.setDataValue(str_name, val)
         except Exception as e:
             print e
             
@@ -438,8 +446,8 @@ class stc_1(device):
         try:
             val1 = data[3] << 8 + data[4]
             val2 = data[5] << 8 + data[6]
-            self.setValue('AO1', val1)
-            self.setValue('AO2', val2)
+            self.setDataValue('AO1', val1)
+            self.setDataValue('AO2', val2)
         except Exception as e:
             print e
         
@@ -452,7 +460,7 @@ class stc_1(device):
                 str_name = str_first + str(i+1)
                 if str_name in self._Algorithm_dict.keys():
                     val = self._Algorithm_dict[str_name](val)
-                self.setValue(str_name, val)
+                self.setDataValue(str_name, val)
         except Exception as e:
             print "_AIParse : ", e
         
@@ -482,6 +490,7 @@ class stc_201(device):
                 for num in range(self.SUPPORTED_INSTRUCTIONS[key][1]):
                     str_name = str_fisrt + str(num+1)
                     self.data_dict.update({str_name : None})
+        self.update(self.data_dict)
         self._Algorithm_dict = {}
         
         self._Parsedict = {
@@ -542,7 +551,7 @@ class stc_201(device):
                 else:
                     val = (data[4] & (1 << (i - port_nums))) >> (i - port_nums)
                 str_name = str_first + str(i+1)
-                self.setValue(str_name, val)
+                self.setDataValue(str_name, val)
                 print str_name,val
         except Exception as e:
             print e
@@ -554,7 +563,7 @@ class stc_201(device):
             for i in range(data[2]/2):
                 val = (data[i*2+4] << 8) + data[i*2+3]
                 str_name = str_first + str(i+1)
-                self.setValue(str_name, val)
+                self.setDataValue(str_name, val)
                 print str_name, val
         except Exception as e:
             print e
@@ -572,7 +581,7 @@ class stc_201(device):
                     val = val / 100.0
                 elif i == 15 or i > 16 :
                     val = val / 1000.0
-                self.setValue(str_name, val)
+                self.setDataValue(str_name, val)
                 print str_name, val
         except Exception as e:
             print "_AIParse : ", e
@@ -614,6 +623,7 @@ class plc(device):
                 for num in range(self.SUPPORTED_INSTRUCTIONS[key][1]):
                     str_name = str_fisrt + str(num+1)
                     self.data_dict.update({str_name : None})
+        self.update(self.data_dict)
         self._Algorithm_dict = {}
         
         self._Parsedict = {
@@ -671,13 +681,13 @@ class plc(device):
             else:
                 val = (data[4] & (1 << (i - 8))) >> (i - 8)
             str_name = str_first + str(i+1)
-            self.setValue(str_name, val)
+            self.setDataValue(str_name, val)
             
     def _AOparse(self, data):
         val1 = (data[3] << 8) + data[4]
         val2 = (data[5] << 8) + data[6]
-        self.setValue('AO1', val1)
-        self.setValue('AO2', val2)
+        self.setDataValue('AO1', val1)
+        self.setDataValue('AO2', val2)
         
     def _AIParse(self, data):
         str_first = 'AI'
@@ -687,7 +697,7 @@ class plc(device):
             str_name = str_first + str(i+1)
             if str_name in self._Algorithm_dict.keys():
                 val = self._Algorithm_dict[str_name](val)
-            self.setValue(str_name, val)
+            self.setDataValue(str_name, val)
             
     def dataParse(self, data):
         try :
@@ -711,6 +721,8 @@ class sansu(device):
                     'Fa2' : None,
                     'DisCount' : None,
                     }
+        self.update(self.data_dict)
+        
     @classmethod
     def genPratrolInstr(self, ID):
         data = [ID,0x03,0x00,0x64,0x00,0x03]
@@ -732,9 +744,9 @@ class sansu(device):
             Wind = data[3]*256 + data[4]
             Fa1 = data[5]*256 + data[6]
             Fa2 = data[7]*256 + data[8]
-            self.setValue('Wind', Wind)
-            self.setValue('Fa1', Fa1)
-            self.setValue('Fa2', Fa2)
+            self.setDataValue('Wind', Wind)
+            self.setDataValue('Fa1', Fa1)
+            self.setDataValue('Fa2', Fa2)
         except Exception as e:
             print "sansu dataParse Error : ", e
             
@@ -864,6 +876,7 @@ class triplecng(device):
                     '25_25' : None,
                     'DisCount' : None,
                     }
+        self.update(self.data_dict)
 
     @classmethod
     def genPratrolInstr(self, ID):
@@ -919,71 +932,71 @@ class triplecng(device):
             str_name = str_type + '_'
             if data_type == 1 : 
                 str_temp = str_name + str(1)
-                self.setValue(str_temp, data[3] << 8 + data[4])
+                self.setDataValue(str_temp, data[3] << 8 + data[4])
             elif data_type == 2 :
                 for i in range(32) :
                     str_temp = str_name + str(i+1) + 'Error'
                     if i < 8:
-                        self.setValue(str_temp,(data[3] & (1 << i)) >> i) 
+                        self.setDataValue(str_temp,(data[3] & (1 << i)) >> i) 
                     elif i < 16:
-                        self.setValue(str_temp,(data[4] & (1 << (i-8))) >> (i-8))
+                        self.setDataValue(str_temp,(data[4] & (1 << (i-8))) >> (i-8))
                     elif i < 24:
-                        self.setValue(str_temp,(data[5] & (1 << (i-16))) >> (i-16))
+                        self.setDataValue(str_temp,(data[5] & (1 << (i-16))) >> (i-16))
                     else:
-                        self.setValue(str_temp,(data[6] & (1 << (i-24))) >> (i-24))
+                        self.setDataValue(str_temp,(data[6] & (1 << (i-24))) >> (i-24))
             elif data_type == 4 :
                 for i in range(4) :
                     str_temp = str_name + str(i+1)
                     if i ==  1 :
-                        self.setValue(str_temp,(data[i*2+3] << 8) + data[i*2+4])
+                        self.setDataValue(str_temp,(data[i*2+3] << 8) + data[i*2+4])
                     else :
                         if 0xff == data[i*2+3]:
-                            self.setValue(str_temp,((data[i*2+3] << 8) + data[i*2+4] - 65536)//10)
+                            self.setDataValue(str_temp,((data[i*2+3] << 8) + data[i*2+4] - 65536)//10)
                         else:
-                            self.setValue(str_temp,((data[i*2+3] << 8) + data[i*2+4])//10)
+                            self.setDataValue(str_temp,((data[i*2+3] << 8) + data[i*2+4])//10)
             elif data_type == 5 :
                 for i in range(5) :
                     str_temp = str_name + str(i+1)
-                    self.setValue(str_temp,((data[i*2+3] << 8) + data[i*2+4])//10)
+                    self.setDataValue(str_temp,((data[i*2+3] << 8) + data[i*2+4])//10)
             elif data_type == 6 :
                 for i in range(5) :
                     str_temp = str_name + str(i+1)
                     if i ==  0 or i == 1 :
-                        self.setValue(str_temp,(data[i*2+3] << 8) + data[i*2+4])
+                        self.setDataValue(str_temp,(data[i*2+3] << 8) + data[i*2+4])
                     else :
                         if 0xff == data[i*2+3]:
-                            self.setValue(str_temp,((data[i*2+3] << 8) + data[i*2+4] - 65536)//10)
+                            self.setDataValue(str_temp,((data[i*2+3] << 8) + data[i*2+4] - 65536)//10)
                         else:
-                            self.setValue(str_temp,((data[i*2+3] << 8) + data[i*2+4])//10)
+                            self.setDataValue(str_temp,((data[i*2+3] << 8) + data[i*2+4])//10)
             elif data_type == 7 :
                 for i in range(6) :
                     str_temp = str_name + str(i+1)
                     if i ==  0 or i == 2 or i == 4 :
-                        self.setValue(str_temp,(data[i*2+3] << 8) + data[i*2+4])
+                        self.setDataValue(str_temp,(data[i*2+3] << 8) + data[i*2+4])
                     else :
                         if 0xff == data[i*2+3]:
-                            self.setValue(str_temp,((data[i*2+3] << 8) + data[i*2+4] - 65536)//10)
+                            self.setDataValue(str_temp,((data[i*2+3] << 8) + data[i*2+4] - 65536)//10)
                         else:
-                            self.setValue(str_temp,((data[i*2+3] << 8) + data[i*2+4])//10)
+                            self.setDataValue(str_temp,((data[i*2+3] << 8) + data[i*2+4])//10)
             elif data_type == 15 : 
                 for i in range(15) :
                     str_temp = str_name + str(i+1)
-                    self.setValue(str_temp,(data[i*2+3] << 8) + data[i*2+4])
+                    self.setDataValue(str_temp,(data[i*2+3] << 8) + data[i*2+4])
             elif data_type == 16 : 
                 for i in range(16) :
                     str_temp = str_name + str(i+1)
-                    self.setValue(str_temp,((data[i*2+3] << 8) + data[i*2+4])//10)
+                    self.setDataValue(str_temp,((data[i*2+3] << 8) + data[i*2+4])//10)
             elif data_type == 25 : 
                 for i in range(25) :
 #                     print "line",i,": ",data[i*2+3]<<8,data[i*2+4]
                     str_temp = str_name + str(i+1)
                     if 5<= i <= 6 or 9 == i or 13 == i or 17 == i or 24 == i:
                         if 0xff == data[i*2+3]:
-                            self.setValue(str_temp,((data[i*2+3] << 8) + data[i*2+4] - 65536)//10)
+                            self.setDataValue(str_temp,((data[i*2+3] << 8) + data[i*2+4] - 65536)//10)
                         else:
-                            self.setValue(str_temp,((data[i*2+3] << 8) + data[i*2+4])//10)
+                            self.setDataValue(str_temp,((data[i*2+3] << 8) + data[i*2+4])//10)
                     else:
-                        self.setValue(str_temp,(data[i*2+3] << 8) + data[i*2+4])
+                        self.setDataValue(str_temp,(data[i*2+3] << 8) + data[i*2+4])
         except Exception as e:
             print "triplecng dataParse Error : ", e
             
@@ -998,6 +1011,7 @@ class voc(device):
                     'Humidity' : None,
                     'DisCount' : None,
                     }
+        self.update(self.data_dict)
         
     @classmethod
     def genPratrolInstr(self, ID):
@@ -1010,9 +1024,9 @@ class voc(device):
             VOC = (data[3]*256 + data[4])/10.0
             Temperature = (data[5]*256 + data[6])/10.0
             Humidity = data[7]*256+data[8]
-            self.setValue('VOC', VOC)
-            self.setValue('Temperature', Temperature)
-            self.setValue('Humidity', Humidity)
+            self.setDataValue('VOC', VOC)
+            self.setDataValue('Temperature', Temperature)
+            self.setDataValue('Humidity', Humidity)
         except Exception as e:
             print "co2 dataParse Error : ", e
 
@@ -1037,6 +1051,7 @@ class wenkong(device):
                     'Control_Mode' : None,
                     'Program_OnOff' : None,
                     }
+        self.update(self.data_dict)
         
     @classmethod
     def genPratrolInstr(self, ID):
@@ -1060,11 +1075,11 @@ class wenkong(device):
             SetTemp = data[7] + data[8]/10.0
             Wind = data[9]*256 + data[10]
             Temp = data[17] + data[18]/10.0
-            self.setValue('OnOff', OnOff)
-            self.setValue('Mode', Mode)
-            self.setValue('SetTemp', SetTemp)
-            self.setValue('Wind', Wind)
-            self.setValue('Temperature', Temp)
+            self.setDataValue('OnOff', OnOff)
+            self.setDataValue('Mode', Mode)
+            self.setDataValue('SetTemp', SetTemp)
+            self.setDataValue('Wind', Wind)
+            self.setDataValue('Temperature', Temp)
             p_onff = self.getValue('Program_OnOff')
             c_mode = self.getValue('Control_Mode')
             if p_onff is not None and c_mode is not None:
@@ -1079,7 +1094,7 @@ class wenkong(device):
         if dataname not in ['Control_Mode','Program_OnOff']:
             err = "There is not a {} in wenkong's ControlData".format(dataname)
             raise Exception(err)
-        self.setValue(self, dataname, value)
+        self.setDataValue(self, dataname, value)
         
 device_Dict['ZMA194E'] = '三相电表'
 
@@ -1110,6 +1125,7 @@ class ZMA194E(device):
                           'WH-1'  : None,
                           'DisCount' : None,
                     }
+        self.update(self.data_dict)
         
     @classmethod
     def genPratrolInstr(self, ID):
@@ -1132,14 +1148,14 @@ class ZMA194E(device):
         try :
             data_type = data[2]//2
             if data_type == 3:
-                self.setValue('DI4', (data[6] & 0x08) >> 3)
-                self.setValue('DI3', (data[6] & 0x04) >> 2)
-                self.setValue('DI2', (data[6] & 0x02) >> 1)
-                self.setValue('DI1', data[6] & 0x01)
-                self.setValue('DO4', (data[8] & 0x08) >> 3)
-                self.setValue('DO3', (data[8] & 0x04) >> 2)
-                self.setValue('DO2', (data[8] & 0x02) >> 1)
-                self.setValue('DO1', data[8] & 0x01)
+                self.setDataValue('DI4', (data[6] & 0x08) >> 3)
+                self.setDataValue('DI3', (data[6] & 0x04) >> 2)
+                self.setDataValue('DI2', (data[6] & 0x02) >> 1)
+                self.setDataValue('DI1', data[6] & 0x01)
+                self.setDataValue('DO4', (data[8] & 0x08) >> 3)
+                self.setDataValue('DO3', (data[8] & 0x04) >> 2)
+                self.setDataValue('DO2', (data[8] & 0x02) >> 1)
+                self.setDataValue('DO1', data[8] & 0x01)
             elif data_type == 26:
                 RMSUA = None
                 RMSUB = None
@@ -1156,45 +1172,45 @@ class ZMA194E(device):
                         value = struct.unpack('!f',strdata)[0]
                         if i == 0:
                             RMSUA = value
-                            self.setValue('RMSUA', value)
+                            self.setDataValue('RMSUA', value)
                         elif i == 1:
                             RMSUB = value
-                            self.setValue('RMSUB', value)
+                            self.setDataValue('RMSUB', value)
                         elif i == 2:
                             RMSUC = value
-                            self.setValue('RMSUC', value)
+                            self.setDataValue('RMSUC', value)
                         elif i == 6:
                             RMSIA = value
-                            self.setValue('RMSIA', value)
+                            self.setDataValue('RMSIA', value)
                         elif i == 7:
                             RMSIB = value
-                            self.setValue('RMSIB', value)
+                            self.setDataValue('RMSIB', value)
                         elif i == 8:
                             RMSIC = value
-                            self.setValue('RMSIC', value)
+                            self.setDataValue('RMSIC', value)
                         elif i == 12:
-                            self.setValue('Psum', value)
+                            self.setDataValue('Psum', value)
                 import math                            
                 Udiff = max(math.fabs(RMSUA - RMSUB), math.fabs(RMSUA - RMSUC), math.fabs(RMSUB - RMSUC))
                 Idiff = max(math.fabs(RMSIA - RMSIB), math.fabs(RMSIA - RMSIC), math.fabs(RMSIB - RMSIC))
-                self.setValue('Udiff', Udiff)
-                self.setValue('Idiff', Idiff)
+                self.setDataValue('Udiff', Udiff)
+                self.setDataValue('Idiff', Idiff)
             elif data_type == 18:
                 strdata = ''
                 for j in data[3:7]:
                     strdata = strdata + chr(j)
                 value = struct.unpack('!f',strdata)[0]
-                self.setValue('Pfsum', value)
+                self.setDataValue('Pfsum', value)
                 strdata = ''
                 for j in data[19:23]:
                     strdata = strdata + chr(j)
                 value = struct.unpack('!f',strdata)[0]
-                self.setValue('FreqA', value)
+                self.setDataValue('FreqA', value)
             elif data_type == 2:
                 strdata = ''
                 for j in data[3:7]:
                     strdata = strdata + chr(j)
                 value = struct.unpack('!f',strdata)[0]
-                self.setValue('WH-1', value)
+                self.setDataValue('WH-1', value)
         except Exception as e:
             print "ZMA194E dataParse Error : ", e
