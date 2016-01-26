@@ -231,6 +231,7 @@ class MyThread(threading.Thread):
 
 class sessionSet(UserDict):
     def __init__(self, server_name, handleTask=None, handleResult=None):
+        UserDict.__init__(self)
         self.server_name = server_name
         self.session_map = {}
         self.handleTask = handleTask

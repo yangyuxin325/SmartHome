@@ -66,7 +66,7 @@ class deviceSet(UserDict):
         
     def getCmdSet(self):
         cycleCmds = {}
-        for dev_id, dev in self.dev_dict.items():
+        for dev_id, dev in self.items():
             cycleCmds[dev_id] = dev.genPratrolInstr(dev_id)
         cmdCount = 0
         #line_cmdList = []
