@@ -12,6 +12,8 @@ import threading
 import time
 import multiprocessing
 from basedata import data_param
+from deviceSet import deviceSet
+from data_session import data_session
 
 class data_server():
     dataConfs = UserDict()
@@ -23,7 +25,7 @@ class data_server():
         self.state = True
         self.stateTime = datetime.min
         self.dev_data = None 
-        self.udev_data = UserDict
+        self.udev_data = UserDict()
         self.init_ip = None
         self.handleTask = None
         self.handleResult = None
@@ -42,19 +44,16 @@ class data_server():
             pass
         
     def getDataSession(self, session_name):
-        if session_name in self.dev_data.session_map:
-            return self.dev_data.session_map[session_name]
+        if self.dev_data:
+            return self.dev_data.get(session_name)
         else:
             pass
         
-    def getDataSessions(self):
-        if self.dev_data:
-            return self.dev_data.session_map.values()
-        else:
-            return []
-        
     def getDataSessionNames(self):
-        return self.dev_data.session_map.keys()
+        if self.dev_data:
+            return self.dev_data.keys()
+        else:
+            pass
         
     def setServerState(self, state, stateTime):
         if self.state != state:
@@ -66,66 +65,66 @@ class data_server():
             self.stateTime = stateTime
         
     def getDataItem(self, data_conf):
-        data = self.getData(data_conf)
-        dataitem = None
-        if data:
-            if data_conf.data_type is None:
-                dataitem = self.dev_data.session_map[data_conf.session_name].getDataItem(
-                                            data_conf.device_name,data_conf.conf_name)
-                dataitem.setData(data)
-            else:
-                dataitem = self.udev_data[data_conf.data_type][data_conf.ename]
-            dataitem.setData(data)
-            return dataitem
+        if isinstance(data_conf, UserDict):
+            return self.dev_data.getDataItem(data_conf.get('session_name'), 
+                                      data_conf.get('dev_name'), 
+                                      data_conf.get('conf_name'))
         else:
             pass
         
     def getDataValue(self, data_conf):
-        dataitem = self.getDataItem(data_conf)
-        if dataitem:
-                return dataitem.getValue()
+        value = None
+        if isinstance(data_conf, UserDict):
+            session_name = data_conf.get('session_name')
+            dev_name = data_conf.get('dev_name')
+            conf_name = data_conf.get('conf_name')
+            value = self.dev_data.getData(session_name, dev_name, conf_name)
+            if self.state:
+                return value
+            else:
+                dis_interval = self.dev_data.getDisInterval(session_name, dev_name, conf_name)
+                if (datetime.now() - self.stateTime).total_seconds() > dis_interval * 60:
+                    return value
+                else:
+                    pass
         else:
             pass
         
     def getRealValue(self, data_conf):
-        data = self.getData(data_conf)
-        return data.getRealValue()
+        if isinstance(data_conf, UserDict):
+            return self.dev_data.getRealValue(data_conf.get('session_name'), 
+                                              data_conf.get('dev_name'), 
+                                              data_conf.get('conf_name'))
+        else:
+            pass
         
     def getData(self, data_conf):
-        if data_conf.data_type is None:
-            data = self.dev_data.getData(data_conf.session_name, data_conf.dev_name, data_conf.conf_name)
-            if data.dis_time < self.dis_time:
-                if self.state is False:
-                    data.dis_flag = True
-                    data.dis_time = self.dis_time
-                else:
-                    pass
+        if data_conf.get('data_type') is None:
+            if isinstance(data_conf, UserDict):
+                return self.dev_data.getData(data_conf.get('session_name'), 
+                                                  data_conf.get('dev_name'), 
+                                                  data_conf.get('conf_name'))
             else:
                 pass
-            return data
         else:
-            data = None
-            if data_conf.data_type in self.udev_data:
-                if data_conf.server_name in self.udev_data[data_conf.data_type]:
-                    dataitem = self.udev_data[data_conf.data_type][data_conf.ename]
-                    data = dataitem.getData()
-                else:
-                    pass
-            else:
-                pass
-            if data is not None:
-                if self.state is False:
-                    data.dis_flag = True
-                    data.dis_flag = self.dis_time
-            return data
+            dataset = self.udev_data.get(data_conf.get('data_type'))
+            if dataset:
+                return dataset.get(data_conf.get('data_ename'))
+            pass
     
     def setData(self, data_conf, data):
-        if data_conf.data_type is None:
-            self.dev_data.setData(data_conf.session_name, data_conf.dev_name, data_conf.conf_name, data)
+        data_type =  data_conf.get('data_type')
+        if data_type is None:
+            self.dev_data.setData(data_conf.get('session_name'), 
+                                  data_conf.get('dev_name'), 
+                                  data_conf.get('conf_name'),
+                                  data)
         else:
-            if data_conf.data_type in self.udev_data:
-                if data_conf.server_name in self.udev_data[data_conf.data_type]:
-                    self.udev_data[data_conf.data_type][data_conf.ename].setData(data)
+            
+            if data_type in self.udev_data:
+                data_ename = data_conf.get('ename_name')
+                if data_ename in self.udev_data[data_type]:
+                    self.udev_data[data_type][data_ename].setData(data)
                     
     def initServerState(self, init_ip):
         db = self.db
@@ -167,7 +166,7 @@ class data_server():
         and server_name = %s group by data_type",self.server_name)
         for res in ress:
             self.udev_data[res['data_type']] = UserDict()
-            for k in self.udev_data.keys():
+            for k in self.udev_data:
                 ress = sqlConnection.query("select DataType.data_type,DataType.pri,\
                 DataInfo.data_ename,DataInfo.value,DataInfo.error_flag,DataInfo.time,\
                 DataConstraint.min_variation,DataConstraint.min_val,DataConstraint.max_val,\
@@ -231,64 +230,58 @@ class MyThread(threading.Thread):
 
 class sessionSet(UserDict):
     def __init__(self, server_name, handleTask=None, handleResult=None):
+        UserDict.__init__(self)
         self.server_name = server_name
-        self.session_map = {}
         self.handleTask = handleTask
         self.handleResult = handleResult
         self.process_map = {}
         self.thread_map = {}
         
-    def getSessionState(self, session_name):
-        if session_name in self.sesion_map:
-            return self.session_map[session_name].getSessionState()
-        else:
-            pass
-        
     def setSessionState(self, session_name, state, stateTime):
-        if session_name in self.session_map:
-            self.session_map['session_name'].setSessionState(state, stateTime)
+        if session_name in self:
+            self['session_name'].setSessionState(state, stateTime)
         else:
             pass
         
     def getDisInterval(self, session_name, dev_name, conf_name):
-        if session_name in self.session_map:
-            return self.session_map[session_name].getDisInterval(dev_name, conf_name)
+        if session_name in self:
+            return self[session_name].getDisInterval(dev_name, conf_name)
         else:
             pass
         
     def getDeviceData(self, session_name, dev_name):
-        if session_name in self.session_map:
-            return self.session_map[session_name].getDeviceData(dev_name)
+        if session_name in self:
+            return self[session_name].getDeviceData(dev_name)
         else:
             pass
     
     def getDataItem(self, session_name, dev_name, conf_name):
-        if session_name in self.session_map:
-            return self.session_map[session_name].getDataItem(dev_name, conf_name)
+        if session_name in self:
+            return self[session_name].getDataItem(dev_name, conf_name)
         else:
             pass
         
     def getData(self, session_name, dev_name, conf_name):
-        if session_name in self.session_map:
-            return self.session_map[session_name].getData(dev_name, conf_name)
+        if session_name in self:
+            return self[session_name].getData(dev_name, conf_name)
         else:
             pass
         
     def setData(self, session_name, dev_name, conf_name, data):
-        if session_name in self.session_map:
-            self.session_map[session_name].setData(dev_name,conf_name,data)
+        if session_name in self:
+            self[session_name].setData(dev_name,conf_name,data)
         else:
             pass
             
     def getDataValue(self, session_name, dev_name, conf_name):
-        if session_name in self.session_map:
-            return self.session_map[session_name].getDataValue(dev_name, conf_name)
+        if session_name in self:
+            return self[session_name].getDataValue(dev_name, conf_name)
         else:
             pass
     
     def getRealValue(self, session_name, dev_name, conf_name):
-        if session_name in self.session_map:
-            return self.session_map[session_name].getRealValue(dev_name, conf_name)
+        if session_name in self:
+            return self[session_name].getRealValue(dev_name, conf_name)
         else:
             pass
             
@@ -361,8 +354,6 @@ class sessionSet(UserDict):
             DataSession on SessionState.session_name = DataSession.session_name and \
             server_name = %s"
             sessions = sqlConnection.query(sqlString, self.server_name)
-            from deviceSet import deviceSet
-            from data_session import data_session
             for session in sessions:
                 devSet = deviceSet(session['session_name'], db)
                 devSet.initData()

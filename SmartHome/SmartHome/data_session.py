@@ -63,7 +63,7 @@ class data_session():
         return self.dev_set.getDisInterval()
     
     def getDeviceData(self, dev_name):
-        return self.dev_set.getDeviceData(dev_name)
+        return self.dev_set.get(dev_name)
         
     def getDataItem(self, dev_name, conf_name):
         return self.dev_set.getDataItem(dev_name, conf_name)

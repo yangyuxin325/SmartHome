@@ -66,10 +66,9 @@ class deviceSet(UserDict):
         
     def getCmdSet(self):
         cycleCmds = {}
-        for dev_id, dev in self.dev_dict.items():
+        for dev_id, dev in self.items():
             cycleCmds[dev_id] = dev.genPratrolInstr(dev_id)
         cmdCount = 0
-        #line_cmdList = []
         line_cmdList = deque()
         for key,cmds in cycleCmds.items():
             for cmd in cmds :
@@ -134,16 +133,18 @@ class deviceSet(UserDict):
                         pass
             sqlConnection.close()
             
-    def getDeviceData(self, dev_name):
-        if dev_name in self.name_idMap:
-            return self.get(self.name_idMap[dev_name])
-        else:
-            pass
+#     def getDeviceData(self, dev_name):
+#         if dev_name in self.name_idMap:
+#             return self.get(self.name_idMap[dev_name])
+#         else:
+#             pass
         
     def getDataItem(self, dev_name, conf_name):
         dev_data = self.getDeviceData(dev_name)
         if dev_data:
             return dev_data.getDataItem(conf_name)
+        else:
+            pass
             
     def getValue(self, dev_name, conf_name):
         dev_data = self.getDeviceData(dev_name)

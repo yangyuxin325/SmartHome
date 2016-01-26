@@ -172,16 +172,16 @@ class device(UserDict):
     def getValue(self, conf_name):
         param = self.getDataItem(conf_name)
         value = None
-        interval = 0
+        dis_interval = 0
         if param:
             value = param.getValue()
-            interval = param.getInterval() if param.getInterval() else 0
+            dis_interval = param.getInterval() if param.getInterval() else 0
         else:
             pass
         if self.state :
             return value
         else:
-            if (datetime.now() - self.stateTime).total_seconds() > interval * 60:
+            if (datetime.now() - self.stateTime).total_seconds() > dis_interval * 60:
                 return value
             else:
                 pass
