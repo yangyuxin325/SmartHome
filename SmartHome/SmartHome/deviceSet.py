@@ -139,6 +139,11 @@ class deviceSet(UserDict):
             return self.get(self.name_idMap[dev_name])
         else:
             pass
+        
+    def getDataItem(self, dev_name, conf_name):
+        dev_data = self.getDeviceData(dev_name)
+        if dev_data:
+            return dev_data.getDataItem(conf_name)
             
     def getValue(self, dev_name, conf_name):
         dev_data = self.getDeviceData(dev_name)
@@ -185,4 +190,4 @@ class deviceSet(UserDict):
             self[dev_id].dataParse(data)
         else:
             print "there is not device which it dev_id = " , dev_id , 
-            " in Session ", self._session_name
+            " in Session ", self.session_name

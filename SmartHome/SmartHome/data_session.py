@@ -12,7 +12,7 @@ from greenlet import greenlet
 from datetime import datetime
 from com_handlers import doDataProcess
 from com_handlers import doSessionState
-from SmartHome import errcmd_deque
+from errcmd_deque import errcmd_deque
 from collections import deque
 
 def Sum_Right(array):
@@ -33,10 +33,6 @@ class data_session():
         self.baudrate = 9600
         self.interval = 0.5
         self.dev_set = dev_set
-        self.cycleCmdList = self.dev_set.getCmdSet()
-        self.cycleCmdList.append({"id" : 0, "cmd" : "", "dev_id" : -1})
-        self.ctrlCmdList = []
-        
         self.errCmdList = []
         self.errStartTime = time.time()
         self.resultQueue = multiprocessing.Queue()
@@ -56,43 +52,41 @@ class data_session():
         self.ctrlCmdDeque = deque()
         self.errCmdDeque = errcmd_deque()
         
+    def getSessionState(self):
+        return {'state' : self.state, 'stateTime' : self.stateTime}
+        
+    def setSessionState(self, state, stateTime):
+        self.state = state
+        self.stateTime = stateTime
+        
     def getDisInterval(self, dev_name, conf_name):
         return self.dev_set.getDisInterval()
+    
+    def getDeviceData(self, dev_name):
+        return self.dev_set.getDeviceData(dev_name)
         
     def getDataItem(self, dev_name, conf_name):
-        data = self.getData(dev_name, conf_name)
-        if data:
-            dataitem = self.dev_set.getDataItem(dev_name, conf_name)
-            dataitem.setData(data)
-            return dataitem
-        else:
-            pass
+        return self.dev_set.getDataItem(dev_name, conf_name)
         
     def getDataValue(self, dev_name, conf_name):
-        dataitem = self.getDataItem(dev_name, conf_name)
-        if dataitem:
-                return dataitem.getValue()
+        value = self.dev_set.getDataValue()
+        if value:
+            if self.state:
+                return value
+            else:
+                interval = self.getDisInterval(dev_name, conf_name)
+                if (datetime.now() - self.stateTime).total_seconds() > interval * 60:
+                    return value
+                else:
+                    pass
         else:
             pass
     
     def getRealValue(self, dev_name, conf_name):
-        data = self.getData(dev_name, conf_name)
-        return data.getRealValue()
+        return self.dev_set.getRealValue()
         
     def getData(self, dev_name, conf_name):
-        if True:
-            data = self.dev_set.getData(dev_name, conf_name)
-            if data.dis_time < self.dis_time:
-                if self.alive is False:
-                    data.dis_flag = True
-                    data.dis_time = self.dis_time
-                else:
-                    pass
-            else:
-                pass
-            return data
-        else:
-            return self.dev_set.getData(dev_name, conf_name)
+        return self.dev_set.getData(dev_name, conf_name)
     
     def setData(self, dev_name, conf_name, data):
         self.dev_set.setData(dev_name, conf_name, data)

@@ -11,7 +11,7 @@ import math
 __metaclass__ = type
         
 class basic_data():
-    def __init__(self, ename, value=None, error_flag=False, time=None):
+    def __init__(self, ename, value=None, error_flag=False, time=datetime.min):
         self.ename = ename
         self.value = value
         self.error_flag = error_flag
@@ -60,6 +60,7 @@ class data_param(basic_data):
             self.error_flag = data.error_flag
             self.time = data.time
             if self.value == self.write_value and self.doWriteReturn:
+                self.write_value = None
                 self.doWriteReturn(self)
         else:
             pass

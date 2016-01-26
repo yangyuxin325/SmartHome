@@ -10,18 +10,19 @@ from datetime import datetime
 
 
 def doDataProcess(session):
-    for dev in session.dev_set.dev_dict.values():
-        for conf_name in dev.data_dict.keys():
-            dev.getData(conf_name)
-                if data_param.isChanged():
-                    session.putResultQueue(handlers.doDataParam,data_param)
-                else:
-                    pass
-            else:
-                pass
-    session.putResultQueue(handlers.doCyclePeriod,
-                           {'session_name' : session.session_name,
-                            'period' : session.periods})
+    pass
+#     for dev in session.dev_set.dev_dict.values():
+#         for conf_name in dev.data_dict.keys():
+#             dev.getData(conf_name)
+#             if data_param.isChanged():
+#                     session.putResultQueue(handlers.doDataParam,data_param)
+#                 else:
+#                     pass
+#             else:
+#                 pass
+#     session.putResultQueue(handlers.doCyclePeriod,
+#                            {'session_name' : session.session_name,
+#                             'period' : session.periods})
     
     
 def doSessionState(session, state):

@@ -6,21 +6,20 @@ Created on 2015年12月28日
 @author: sanhe
 '''
 import asyncore
-import socket
 import threading
 import torndb
-import time
-import multiprocessing
 from datetime import datetime
-from basedata import basic_data
 from basedata import data_param
 from copy import deepcopy
-# from decimal import *
+from sock_session import AsyncServer
+from sock_session import AsyncSession
+from sock_session import AsyncClient
 import com_handlers
 import struct
 import json
 from handlers import RequestProtocolData
 from UserDict import UserDict
+from data_server import data_server
 
 # 被动socket数据处理
 def handleData(sockSession):
@@ -84,303 +83,32 @@ def doConnect(session):
     c_ip = session.addr[0]
     if DSAURServer().server_type == 'region':
         if c_ip in DSAURServer().server.unit_server_map:
-            DSAURServer().server.unit_server_map[c_ip].setState(True)
+            DSAURServer().server.unit_server_map[c_ip].setServerState(True,datetime.now())
         else:
             pass
     elif DSAURServer().server_type == 'node':
         DSAURServer().server.setUploadSessionflag(True)
         
-def deleteClient(client):
-    if id(client) in DSAURServer.client_map:
-        del DSAURServer.client_map[id(client)]
-        
 def doClose(session):
     c_ip = session.addr[0]
     if DSAURServer().server_type == 'region':
         if c_ip in DSAURServer().server.unit_server_map:
-            DSAURServer().server.unit_server_map[c_ip].setState(False)
+            DSAURServer().server.unit_server_map[c_ip].setServerState(False,datetime.now())
         else:
-            deleteClient(session)
+            DSAURServer().delClient(id(session))
     elif DSAURServer().server_type == 'unit':
         if c_ip == DSAURServer().server.region_ip:
             DSAURServer().server.setUploadSession(None,False)
         elif c_ip in DSAURServer().server.node_server_map:
-            DSAURServer().server.node_server_map[c_ip].setState(False)
+            DSAURServer().setNodeState(c_ip,False,datetime.now())
         else:
-            deleteClient(session)
+            DSAURServer().delClient(id(session))
     elif DSAURServer().server_type == 'node':
         if c_ip == DSAURServer().server.unit_ip:
             DSAURServer().server.setUploadSessionflag(False)
         else:
-            deleteClient(session)
-
-class AsyncSession(asyncore.dispatcher_with_send):
-    def __init__(self, host, port, handleData, server_para, db=None):
-        asyncore.dispatcher_with_send.__init__(self)
-        self.server_name = server_para.server_name
-        self.server_type = server_para.server_type
-        self.server_ip = server_para.server_ip
-        self.startUpload = False
-        self.addr = (host, port)
-        self.sqlConnection = None
-        if db is not None:
-            self.sqlConnection = torndb.Connection(db.addr, db.name, user=db.user, password=db.password)
-        self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.connect(self.addr)
-        self.handleData = handleData
-        self.timer = threading.Timer(3,self.handle_timer)
-        
-    def handle_timer(self):
-        if self.connected:
-            print self.addr, self.connected
-            self.send(struct.pack('!4i', 0, 0, 0, 0))
-            self.timer = threading.Timer(3,self.handle_timer)
-            self.timer.start()
-        else:
-            pass
-        
-        
-    def handle_read(self):
-        asyncore.dispatcher_with_send.handle_read(self)
-        self.timer.cancel()
-        if self.connected:
-            if self.handleData:
-                self.handleData(self)
-            else:
-                buf = self.recv(100)
-                print buf.strip()
-        else:
-            pass
-        self.timer = threading.Timer(3,self.handle_timer)
-        self.timer.start()
-        
-    def handle_connect(self):
-        asyncore.dispatcher_with_send.handle_connect(self)
-        if self.connected:
-            doConnect(self)
-            self.timer = threading.Timer(3,self.handle_timer)
-            self.timer.start()
-        else:
-            pass
-        
-    def handle_close(self):
-        asyncore.dispatcher_with_send.handle_close(self)
-        try:
-            doClose(self)
-            time.sleep(1)
-            self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.connect(self.addr)
-        except Exception as e:
-            self.connecting = False
-            print e
-        
-    def sendData(self,data):
-        self.timer.cancel()
-        if self.connected:
-            self.send(data)
-        else:
-            pass
-
-class AsyncClient(asyncore.dispatcher_with_send):
-    def __init__(self, sock, handleData, server_para=None, db = None):
-        asyncore.dispatcher_with_send.__init__(self, sock)
-        self.server_name = None
-        self.server_type = 'client'
-        self.server_ip = None
-        self.startUpload = False
-        if server_para is not None:
-            self.server_name = server_para.server_name
-            self.server_type = server_para.server_type
-            self.server_ip = server_para.server_ip
-        self.handleData =handleData
-        self.sqlConnection = None
-        if db is not None:
-            self.sqlConnection = torndb.Connection(db.addr, db.name, user=db.user, password=db.password)
-        if self.connected:
-            self.timer = threading.Timer(3,self.handle_timer)
-            self.timer.start()
-        
-    def handle_read(self):
-        asyncore.dispatcher_with_send.handle_read(self)
-        self.timer.cancel()
-        if self.connected:
-            if self.handleData:
-                self.handleData(self)
-            else:
-                buf = self.recv(100)
-                print buf.strip()
-        else:
-            pass
-        self.timer = threading.Timer(3,self.handle_timer)
-        self.timer.start()
-        
-    def handle_timer(self):
-        if self.connected:
-            self.send(struct.pack('!4i', 0, 0, 0, 0))
-        else:
-            pass
-        self.timer = threading.Timer(3,self.handle_timer)
-        self.timer.start()
-        
-    def sendData(self,data):
-        self.timer.cancel()
-        if self.connected:
-            self.send(data)
-        else:
-            pass
-        
-    def handle_close(self):
-        asyncore.dispatcher_with_send.handle_close(self)
-        if self.sqlConnection:
-            self.sqlConnection.close()
-            self.sqlConnection = None
-            doClose(self)
-        
-class AsyncServer(asyncore.dispatcher):
-    def __init__(self, host, port, handleConnect):
-        asyncore.dispatcher.__init__(self)
-        self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.set_reuse_addr()
-        self.bind((host,port))
-        self.handleConnect = handleConnect
-        
-    def run(self):
-        self.listen(5)
-        
-    def handle_accept(self):
-        asyncore.dispatcher.handle_accept(self)
-        pair = self.accept()
-        if self.handleConnect:
-            self.handleConnect(pair)
-        
-class MyThread(threading.Thread):
-    def __init__(self, session, handleResult):
-        threading.Thread.__init__(self)
-        self.session = session
-        self.stop_thread = False
-        self.handleResult = handleResult
-        
-    def run(self):
-        while not self.stop_thread :
-            task = self.session.getResultQueue()
-            if task :
-                self.handleResult(task)
-            time.sleep(0.01)
+            DSAURServer().delClient(id(session))
             
-    def stop(self):
-        self.stop_thread = True
-        
-class sessionSet():
-    def __init__(self, server_name, handleTask=None, handleResult=None):
-        self.server_name = server_name
-        self.session_map = {}
-        self.handleTask = handleTask
-        self.handleResult = handleResult
-        self.process_map = {}
-        self.thread_map = {}
-    
-    def getDataItem(self, session_name, dev_name, conf_name):
-        if session_name in self.session_map:
-            return self.session_map[session_name].getDataItem(dev_name, conf_name)
-        else:
-            pass
-        
-    def getData(self, session_name, dev_name, conf_name):
-        if session_name in self.session_map:
-            return self.session_map[session_name].getData(dev_name, conf_name)
-        else:
-            pass
-        
-    def setData(self, session_name, dev_name, conf_name, data):
-        if session_name in self.session_map:
-            self.session_map[session_name].setData(dev_name,conf_name,data)
-            
-    def stopSession(self, session_name):
-        try:
-            if session_name in self.process_map :
-                if not self.session_map[session_name].alive:
-                    del self.process_map[session_name]
-                else :
-                    self.session_map[session_name].putTaskQueue({'MsgType' : 1, 'data' : {'state' : 0}})
-                    while self.dataSession_map[session_name].alive():
-                        time.sleep(3)
-                    del self.process_map[session_name]
-                if session_name in self.thread_map :
-                    if self.thread_map[session_name].is_alive:
-                        self.thread_map[session_name].stop()
-                    del self.thread_map[session_name]
-                else:
-                    pass
-        except Exception as e:
-            print "startSession Error : " , e
-        
-    def startSession(self, session_name):
-        try:
-            if session_name in self.process_map :
-                if not self.session_map[session_name].alive:
-                    del self.process_map[session_name]
-                else :
-                    self.session_map[session_name].putTaskQueue({'MsgType' : 1, 'data' : {'state' : 0}})
-                    while self.dataSession_map[session_name].alive():
-                        time.sleep(3)
-                    del self.process_map[session_name]
-                if session_name in self.thread_map :
-                    if self.thread_map[session_name].is_alive:
-                        self.thread_map[session_name].stop()
-                    del self.thread_map[session_name]
-                else:
-                    pass
-        except Exception as e:
-            print "startSession Error : " , e
-        if session_name in self.session_map :
-            p = multiprocessing.Process(target=self.session_map[session_name])
-            self.process_map[session_name] = p
-            p.start()
-            th = MyThread(self.session_map[session_name],self.handleResult)
-            self.thread_map[session_name] = th
-            th.start()
-        else:
-            pass
-        
-    def startPatrol(self):
-        for session_name in self.session_map:
-            self.session_map[session_name].useflag = True
-            p = multiprocessing.Process(target=self.session_map[session_name])
-            self.process_map[session_name] = p
-            p.start()
-            th = MyThread(self.session_map[session_name],self.handleResult)
-            self.thread_map[session_name] = th
-            th.start()
-            
-    def stopPatrol(self):
-        for session_name in self.session_map:
-            self.stopSession(session_name)
-        
-    def init(self, db):
-        if db is not None:
-            sqlConnection = torndb.Connection(db.addr, db.name, user=db.user, password=db.password)
-            sqlString = "select SessionState.session_name, SessionState.session_state,\
-            SessionState.updatetime,DataSession.session_id from SessionState inner join \
-            DataSession on SessionState.session_name = DataSession.session_name and \
-            server_name = %s"
-            sessions = sqlConnection.query(sqlString, self.server_name)
-            from deviceSet import deviceSet
-            from data_session import data_session
-            for session in sessions:
-                devSet = deviceSet(session['session_name'], db)
-                devSet.initData()
-                sess = data_session(self.server_name,
-                                    session['session_name'],
-                                    session['session_id'],
-                                    devSet,
-                                    self.handleTask)
-                sess.state = session['session_state']
-                sess.stateTime = session['updatetime']
-                self.session_map[session['session_name']] = sess
-            sqlConnection.close()
-        else:
-            pass
-        
 class DSAURServer(object):
     instance = None
     region_ip = None
@@ -471,6 +199,12 @@ class DSAURServer(object):
         self.server.stopWork()
         asyncore.close_all()
         
+    def addClient(self, sockSession):
+        self.client_map[id(sockSession)] = sockSession
+        
+    def delClient(self, Id):
+        del self.client_map[Id]
+        
     def startService(self,handleConnect):
         self.Service = AsyncServer(self.server_ip,self.port,handleConnect)
         self.Service.run()
@@ -481,7 +215,8 @@ class DSAURServer(object):
     def initData(self):
         if self.server_type in Server_dict:
             self.server = \
-            Server_dict[self.server_type](self.server_ip,
+            Server_dict[self.server_type](self.db,
+                                          self.server_ip,
                                           self.ip_name_map[self.server_ip],
                                           DoInithandle_dict[self.server_type])
             self.server.initServer(**DOhandles_Args_dict[self.server_type])
@@ -499,190 +234,6 @@ class DSAURServer(object):
     
     def getDataSessions(self, server_name):
         return self.server.getDataSessions(server_name)
-                
-            
-class data_server():
-    dataConfs = UserDict
-    def __init__(self, server_ip, server_name, state = True, sockSession=None):
-        self.server_ip = server_ip
-        self.server_name = server_name
-        self.sockSession = sockSession
-        self.db = DSAURServer().db
-        self.state = state
-        self.dis_time = None
-        self.dev_data = None 
-        self.udev_data = UserDict
-        self.init_ip = None
-        self.handleTask = None
-        self.handleResult = None
-        
-    def startWork(self):
-        if self.dev_data:
-            self.dev_data.startPatrol()
-        else:
-            pass
-        
-    def stopWork(self):
-        if self.dev_data:
-            self.dev_data.stopPatrol()
-        else:
-            pass
-        
-    def getDataSession(self, session_name):
-        if session_name in self.dev_data.session_map:
-            return self.dev_data.session_map[session_name]
-        else:
-            pass
-        
-    def getDataSessions(self):
-        if self.dev_data:
-            return self.dev_data.session_map.values()
-        else:
-            return []
-        
-    def getDataSessionNames(self):
-        return self.dev_data.session_map.keys()
-        
-    def setState(self, flag):
-        if self.state != flag:
-            self.state = flag
-            if self.state is False:
-                self.dis_time = datetime.now()
-        else:
-            pass
-        
-    def getDataItem(self, data_conf):
-        data = self.getData(data_conf)
-        dataitem = None
-        if data:
-            if data_conf.data_type is None:
-                dataitem = self.dev_data.session_map[data_conf.session_name].getDataItem(
-                                            data_conf.device_name,data_conf.conf_name)
-                dataitem.setData(data)
-            else:
-                dataitem = self.udev_data[data_conf.data_type][data_conf.ename]
-            dataitem.setData(data)
-            return dataitem
-        else:
-            pass
-        
-    def getDataValue(self, data_conf):
-        dataitem = self.getDataItem(data_conf)
-        if dataitem:
-                return dataitem.getValue()
-        else:
-            pass
-        
-    def getRealValue(self, data_conf):
-        data = self.getData(data_conf)
-        return data.getRealValue()
-        
-    def getData(self, data_conf):
-        if data_conf.data_type is None:
-            data = self.dev_data.getData(data_conf.session_name, data_conf.dev_name, data_conf.conf_name)
-            if data.dis_time < self.dis_time:
-                if self.state is False:
-                    data.dis_flag = True
-                    data.dis_time = self.dis_time
-                else:
-                    pass
-            else:
-                pass
-            return data
-        else:
-            data = None
-            if data_conf.data_type in self.udev_data:
-                if data_conf.server_name in self.udev_data[data_conf.data_type]:
-                    dataitem = self.udev_data[data_conf.data_type][data_conf.ename]
-                    data = dataitem.getData()
-                else:
-                    pass
-            else:
-                pass
-            if data is not None:
-                if self.state is False:
-                    data.dis_flag = True
-                    data.dis_flag = self.dis_time
-            return data
-    
-    def setData(self, data_conf, data):
-        if data_conf.data_type is None:
-            self.dev_data.setData(data_conf.session_name, data_conf.dev_name, data_conf.conf_name, data)
-        else:
-            if data_conf.data_type in self.udev_data:
-                if data_conf.server_name in self.udev_data[data_conf.data_type]:
-                    self.udev_data[data_conf.data_type][data_conf.ename].setData(data)
-        
-    def initData(self, init_ip, handleTask=None, handleResult=None):
-        self.init_ip = init_ip
-        self.handleTask = handleTask
-        self.handleResult = handleResult
-        self.__initDataConfs(init_ip)
-        self.__initDevData(init_ip, handleTask, handleResult)
-        self.__initUDevData(init_ip)
-        
-    
-        
-    def __initDevData(self, init_ip, handleTask=None, handleResult=None):
-        self.dev_data = sessionSet(self.server_name, handleTask, handleResult)
-        db = self.db
-        if db:
-            db.addr = init_ip + ':3306'
-        else:
-            pass
-        self.dev_data.init(db)
-        
-    def __initUDevData(self, init_ip):
-        db = self.db
-        db.addr = init_ip + ':3306'
-        sqlConnection = torndb.Connection(db.addr, db.name, user=db.user, password=db.password)
-        ress = sqlConnection.query("select data_type from DataType where data_type is not NULL \
-        and server_name = %s group by data_type",self.server_name)
-        for res in ress:
-            self.udev_data[res['data_type']] = UserDict()
-            for k in self.udev_data.keys():
-                ress = sqlConnection.query("select DataType.data_type,DataType.pri,DataInfo.data_ename,DataInfo.value,\
-                DataInfo.error_flag,DataInfo.time,\
-                DataConstraint.min_variation,DataConstraint.min_val,DataConstraint.max_val,\
-                DataConstraint.dis_interval from DataInfo inner join DataConstraint inner join \
-                DataType on DataInfo.data_ename = DataConstraint.data_ename and \
-                DataInfo.data_ename = DataType.data_ename and DataType.server_name = %s \
-                and DataType.data_type = %s",self.server_name,k)
-                for res in ress:
-                    dataconstraint = UserDict()
-                    temlist = {'min_variation', 'min_val', 'max_val', 'dis_interval'}
-                    for k in temlist:
-                        v = res[k]
-                        dataconstraint[k] = float(v) if v else v
-                    dataitem = data_param(res['data_ename'],dataconstraint,
-                                                  float(res['value']),res['error_flag'],
-                                                  res['time'])
-                    self.udev_data[res['data_type']][res['data_ename']] = dataitem
-            sqlConnection.close()
-        else:
-            pass
-        
-    def __initDataConfs(self, init_ip):
-        db = self.db
-        if db:
-            db.addr = init_ip + ':3306'
-            sqlConnection = torndb.Connection(db.addr, db.name, user=db.user, password=db.password)
-            ress = sqlConnection.query("select data_ename,data_cname,data_type from DataType where data_type is not NULL")
-            for res in ress:
-                data_conf = UserDict()
-                for k, v in res:
-                    data_conf[k] = v
-                self.dataConfs[res['data_ename']] = data_conf
-            ress = sqlConnection.query('select DataType.data_ename,DataType.pri,DataType.data_cname,DataType.conf_name, \
-            Device.dev_name, Device.session_name from DataType  inner join Device on \
-            DataType.dev_name = Device.dev_name and DataType.server_name  = %s',self.server_name)
-            for res in ress:
-                for k, v in res:
-                    data_conf[k] = v
-                self.dataConfs[res['data_ename']] = data_conf
-            sqlConnection.close()
-        else:
-            pass
         
 def PingIP(strIp):
     import os
@@ -703,8 +254,8 @@ class RegionDataServer(data_server):
     total_distime = datetime.min
     unitfinishflags = {}
     wait_interval = 3
-    def __init__(self, server_ip, server_name, handleTimer):
-        data_server.__init__(self, server_ip, server_name, True)
+    def __init__(self, db, server_ip, server_name, handleTimer):
+        data_server.__init__(self, db, server_ip, server_name)
         self.server_type = 'region'
         self.unit_server_map = {}
         self.node_server_map = {}
@@ -737,15 +288,19 @@ class RegionDataServer(data_server):
             if data_sess:
                 return data_sess
         
-    def setUnitState(self, unit_ip ,flag):
-        self.unit_server_map[unit_ip].setState(flag)
+    def setUnitState(self, unit_ip ,state, stateTime):
+        self.unit_server_map[unit_ip].setServerState(state, stateTime)
         unit_name = DSAURServer().ip_name_map[unit_ip]
         for node,unit in DSAURServer().node_unit_map:
             if unit == unit_name:
                 node_ip = DSAURServer().ip_name_map[node]
-                self.node_server_map[node_ip].setState(flag)
+                self.setNodeState(node_ip, state, stateTime)
             else:
                 pass
+            
+    def setNodeState(self, node_ip ,state, stateTime):
+        self.node_server_map[node_ip].setServerState(state, stateTime)
+    
             
     def getRealValue(self, ename):
         dataitem = self.getDataItem(ename)
@@ -790,13 +345,12 @@ class RegionDataServer(data_server):
         for u_ip in DSAURServer().unit_ipset:
             u_name = DSAURServer().ip_name_map[u_ip]
             self.unitfinishflags[u_name] = {'flag' : False, 'time' : datetime.now()}
-            self.unit_server_map[u_ip] = data_server(u_ip, u_name, False, 
+            self.unit_server_map[u_ip] = data_server(u_ip, u_name,
                     AsyncSession(u_ip,8899,args['handleData'],
                                  Server_Param(u_ip,u_name,'unit'),self.db))
-            self.name_ip_map[u_name] = u_ip
         for n_ip in DSAURServer().node_ipset:
             n_name = DSAURServer().ip_name_map[n_ip]
-            self.node_server_map[n_ip] = data_server(n_ip, n_name, False, None)
+            self.node_server_map[n_ip] = data_server(n_ip, n_name, None)
             self.name_ip_map[n_name] = n_ip
         self.timer = threading.Timer(3,self.handleTimer,args=[self,])
         self.timer.start()
@@ -826,12 +380,12 @@ class RegionDataServer(data_server):
         return flag
     
 def doUnitInit(unit_server):
-    for key,server in unit_server.node_server_map:
-        if server.state is False:
-            unit_server.setNodeState(key,False)
+    for node_ip in unit_server.node_server_map.keys:
+        if unit_server.getNodeState(node_ip):
+            unit_server.setNodeState(node_ip, False, datetime.now())
         else:
             pass
-    if unit_server.upload_Session is None or unit_server.upload_Session.connected is False:
+    if unit_server.getUploadSessionState() is False:
         unit_server.setUploadSession(None,False)
     else:
         pass
@@ -841,8 +395,8 @@ class UnitDataServer(data_server):
     total_distime = datetime.min
     sessfinishflags = {}
     wait_interval = 3
-    def __init__(self, server_ip, server_name, handleTimer):
-        data_server.__init__(self, server_ip, server_name, True)
+    def __init__(self, db, server_ip, server_name, handleTimer):
+        data_server.__init__(self, db, server_ip, server_name)
         self.server_type = 'unit'
         self.upload_Session = None
         self.dis_time = None
@@ -878,6 +432,12 @@ class UnitDataServer(data_server):
         else:
             return []
         
+    def getUploadSessionState(self):
+        if self.upload_Session:
+            return self.upload_Session.connected
+        else:
+            return False
+        
     def setUploadSession(self, session, flag):
         self.upload_Session = session
         if flag is False:
@@ -885,12 +445,20 @@ class UnitDataServer(data_server):
         else:
             if self.firstflag is False:
                 self.initData(self.region_ip, self.handleTask, self.handleResult)
-#                 程序计算开始
-            if self.firstflag:
+            else:
                 self.firstflag = False
+                
+    def setNodeSession(self, node_ip, session):
+        self.node_server_map[node_ip].sockSession = session
         
-    def setNodeState(self, node_ip ,flag):
-        self.node_server_map[node_ip].setState(flag)
+    def getNodeState(self, node_ip):
+        if node_ip in self.node_server_map:
+            return self.node_server_map[node_ip].connected
+        else:
+            return False
+        
+    def setNodeState(self, node_ip ,state, stateTime):
+        self.node_server_map[node_ip].setServerState(state, stateTime)
         
     def getRealValue(self, ename):
         value = None
@@ -972,7 +540,8 @@ class UnitDataServer(data_server):
         for node, unit in DSAURServer().node_unit_map:
             if unit == self.server_name:
                 node_ip = DSAURServer().name_ip_map[node]
-                self.node_server_map[node_ip] = data_server(node_ip,node,False)
+                self.node_server_map[node_ip] = data_server(node_ip,node)
+                self.node_server_map[node_ip].initServerState(self.init_ip)
                 self.node_server_map[node_ip].initData(self.init_ip)
                 self.name_ip_map[node] = node_ip
         self.__initOtherData()
@@ -1011,9 +580,9 @@ class UnitDataServer(data_server):
     def __initOtherData(self):
         db = self.db
         sqlConnection = torndb.Connection(db.addr, db.name, user=db.user, password=db.password)
-        ress = sqlConnection.query("select DataType.data_ename,DataType.pri,DataType.data_cname,DataType.server_name,\
-        DataType.data_type, DataType.dev_name, DataType.conf_name from DataType inner join \
-        transmitData on DataType.data_ename = transmitData.data_ename and \
+        ress = sqlConnection.query("select DataType.data_ename,DataType.pri,DataType.data_cname,\
+        DataType.server_name,DataType.data_type, DataType.dev_name, DataType.conf_name from \
+        DataType inner join transmitData on DataType.data_ename = transmitData.data_ename and \
         transmitData.server_name = %s",self.server_name)
         for res in ress:
             data_conf = UserDict()
@@ -1054,14 +623,14 @@ class UnitDataServer(data_server):
         sqlConnection.close()
         
 def doNodeInit(node_server):
-    if node_server.upload_Session.connected is False:
+    if node_server.getUploadSessionState() is False:
         node_server.setUploadSessionflag(False)
     else:
         pass
             
 class NodeDataServer(data_server):
-    def __init__(self, server_ip, server_name, handleTimer):
-        data_server.__init__(self, server_ip, server_name, True)
+    def __init__(self, db, server_ip, server_name, handleTimer):
+        data_server.__init__(self, db, server_ip, server_name, True)
         self.server_type = 'node'
         self.init_ip = self.server_ip
         self.upload_Session = None
@@ -1072,6 +641,12 @@ class NodeDataServer(data_server):
         self.handleTask = None
         self.handleResult = None
         self.handleTimer = handleTimer
+        
+    def getUploadSessionState(self):
+        if self.upload_Session:
+            return self.upload_Session.connected
+        else:
+            return False
         
     def getDataSession(self, session_name):
         data_sess = data_server.getDataSession(self,session_name)
@@ -1161,14 +736,16 @@ def handleConnect(pair):
         if addr[0] == DSAURServer().region_ip:
             sockSession = AsyncClient(sock,handleData,Server_Param('region',addr[0],'region'))
             DSAURServer().server.setUploadSession(sockSession,True)
+#             上报各个节点的连接状态
         elif addr[0] in DSAURServer().node_ipset:
-            sockSession = AsyncClient(sock,handleData,Server_Param(DSAURServer().ip_name_map[addr[0]],addr[0],'node'))
-            DSAURServer().server.node_server_map[addr[0]].sockSession = sockSession
-            DSAURServer().server.node_server_map[addr[0]].setState(True)
+            sockSession = AsyncClient(sock,handleData,
+                                      Server_Param(DSAURServer().ip_name_map[addr[0]],addr[0],'node'))
+            DSAURServer().server.setNodeSession(addr[0],sockSession)
+            DSAURServer().server.setNodeState(addr[0],True,datetime.now())
         else:
             sockSession = AsyncClient(sock,handleData)
-            DSAURServer.client_map[id(sockSession)] = sockSession
+            DSAURServer().addClient(sockSession)
     else:
         sockSession = AsyncClient(sock,handleData)
-        DSAURServer.client_map[id(sockSession)] = sockSession
+        DSAURServer().addClient(sockSession)
     print sockSession

@@ -671,7 +671,7 @@ class plc(device):
             else:
                 val = (data[4] & (1 << (i - 8))) >> (i - 8)
             str_name = str_first + str(i+1)
-            self.self.setValue(str_name, val)
+            self.setValue(str_name, val)
             
     def _AOparse(self, data):
         val1 = (data[3] << 8) + data[4]
