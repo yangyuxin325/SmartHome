@@ -13,7 +13,6 @@ import struct
 import time
 import SmartServer
 
-
 class AsyncSession(asyncore.dispatcher_with_send):
     def __init__(self, host, port, handleData, server_para, db=None):
         asyncore.dispatcher_with_send.__init__(self)
@@ -24,7 +23,7 @@ class AsyncSession(asyncore.dispatcher_with_send):
         self.addr = (host, port)
         self.sqlConnection = None
         if db is not None:
-            self.sqlConnection = torndb.Connection(db.addr, db.name, user=db.user, password=db.password)
+            self.sqlConsession_mapnection = torndb.Connection(db.addr, db.name, user=db.user, password=db.password)
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect(self.addr)
         self.handleData = handleData
