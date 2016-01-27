@@ -5,7 +5,6 @@ Created on 2016年1月15日
 
 @author: sanhe
 '''
-import handlers
 from datetime import datetime
 
 
@@ -26,6 +25,7 @@ def doDataProcess(session):
     
     
 def doSessionState(session, state):
+    import handlers.doSessionState
     session.putResultQueue(handlers.doSessionState,
                            {'session_name' : session.session_name,
                             'state' : state,
