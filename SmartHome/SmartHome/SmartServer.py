@@ -131,6 +131,16 @@ class DSAURServer(object):
             cls.instance = super(DSAURServer, cls).__new__(cls, *args, **kwarg)
         return cls.instance
     
+    def getDataItem(self, ename):
+        data_conf = self.getDataConf(ename)
+        if data_conf:
+            return self.server.getDataItem(data_conf)
+        else:
+            pass
+    
+    def getDataValue(self, ename):
+        return self.server.getDataValue(ename)
+    
     def getDataConf(self, ename):
         if self.server:
             return self.server.getDataConf(ename)
@@ -331,6 +341,22 @@ class RegionDataServer(data_server):
                 return dataitem.getRealValue()
         else:
             pass
+        
+    def getDataValue(self, ename):
+        data_conf = self.dataConfs.get(ename)
+        if data_conf:
+            server_name = data_conf['server_name']
+            if server_name == self.server_name:
+                return self.getDataValue(data_conf)
+            elif server_name in self.name_ip_map:
+                server_ip = self.name_ip_map[server_name]
+                if server_ip in self.unit_server_map:
+                    return self.unit_server_map[server_name].getDataValue(data_conf)
+                else:
+                    return self.node_server_map[server_name].getDataValue(data_conf)
+            else:
+                pass
+            
     
     def getDataItem(self, ename):
         dataitem = None
@@ -349,20 +375,6 @@ class RegionDataServer(data_server):
         else:
             pass
         return dataitem
-    
-    def getData(self, ename):
-        dataitem = self.getDataItem(ename)
-        if dataitem:
-                return dataitem.getData()
-        else:
-            pass
-            
-    def getDataValue(self, ename):
-        dataitem = self.getDataItem(ename)
-        if dataitem:
-                return dataitem.getValue()
-        else:
-            pass
         
     def initServer(self, **args):
         for u_ip in DSAURServer().unit_ipset:
@@ -422,7 +434,7 @@ class UnitDataServer(data_server):
         data_server.__init__(self, db, server_ip, server_name)
         self.server_type = 'unit'
         self.upload_Session = None
-        self.dis_time = None
+        self.dis_time = datetime.min
         self.node_server_map = {}
         self.name_ip_map = {}
         self.AreaSendData = {}
@@ -512,36 +524,41 @@ class UnitDataServer(data_server):
                 value = None
                 if ename in self.AreaSendData or ename in self.transmitData:
                     dataitem = self.AreaSendData[ename]
-                    data = self.getData(data_conf)
-                    dataitem.setData(data)
-                    value = dataitem.getValue()
+                    if self.upload_Session and self.upload_Session.connected:
+                        value = dataitem.value
+                    else:
+                        dis_interval = dataitem.getDisInterval()
+                        if (datetime.now() - self.dis_time).total_seconds() < dis_interval * 60:
+                            value = dataitem.value
+                        else:
+                            pass
                 else:
                     pass
         else:
             pass
         return value
         
-    def getData(self, ename):
-        rd = None
+    def getDataItem(self, ename):
+        data_conf = self.dataConfs.get(ename)
         if ename in self.dataConfs:
-            dataconf = self.dataConfs[ename]
-            if dataconf.sever_name == self.server_name:
-                rd = data_server.getData(self, dataconf)
-            elif dataconf.sever_name in DSAURServer().node_ip_map:
-                n_ip = DSAURServer().node_ip_map[dataconf.sever_name]
+            data_conf = self.dataConfs[ename]
+            if data_conf.sever_name == self.server_name:
+                rd = data_server.getDataItem(self, data_conf)
+            elif data_conf.sever_name in DSAURServer().node_ip_map:
+                n_ip = DSAURServer().node_ip_map[data_conf.sever_name]
                 if n_ip in self.node_server_map:
-                    rd = self.node_server_map[n_ip].getData(dataconf)
+                    rd = self.node_server_map[n_ip].getDataItem(data_conf)
                 else:
                     pass
             else:
-                if dataconf.sever_name == 'region':
+                if data_conf.sever_name == 'region':
                     if ename in self.AreaSendData:
-                        rd = self.AreaSendData[ename].getData()
+                        rd = self.AreaSendData[ename]
                     else:
                         pass
                 else:
                     if ename in self.transmitData:
-                        rd = self.transmitData[ename].getData()
+                        rd = self.transmitData[ename]
                     else:
                         pass
                 if rd and rd.dis_time < self.dis_time:
@@ -700,13 +717,17 @@ class NodeDataServer(data_server):
             pass
 #             程序计算开始
         
-    def getData(self, ename):
-        if ename in self.dataConfs:
-            dataconf = self.dataConfs[ename]
-            if dataconf.sever_name == self.server_name:
-                data_server.getData(self, dataconf)
-            else:
-                pass
+    def getDataItem(self, ename):
+        data_conf = self.dataConfs.get(ename)
+        if data_conf:
+            return data_server.getDataItem(self, data_conf)
+        else:
+            pass
+        
+    def getDataValue(self, ename):
+        data_conf = self.dataConfs.get(ename)
+        if data_conf:
+            return self.getDataValue(data_conf)
         else:
             pass
     

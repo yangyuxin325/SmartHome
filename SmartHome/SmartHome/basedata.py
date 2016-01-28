@@ -65,9 +65,6 @@ class data_param(basic_data):
                 self.doWriteReturn(self)
         else:
             pass
-                    
-    def getData(self):
-        return self.__data
     
     def getDisInterval(self):
         return self.__constraint['dis_interval']
@@ -145,7 +142,7 @@ class data_param(basic_data):
             
     def setReason(self, reason):
         self.__reason = reason
-        if isinstance(reason, basic_data):
+        if isinstance(reason, dict):
             self.__reasonType = 3
         elif isinstance(reason, int):
             self.__reasonType = 1
@@ -157,36 +154,36 @@ class data_param(basic_data):
         self.__reason = None
         self.__reasonType = None
         return data
-    
-class ReasonData():
-    RS_DICT = {}
-    def __init__(self):
-        self.RS_Data = None
-        self.RS_id = None
-        self.padMac = None
-        
-    def setData(self,data):
-        self.RS_id = None
-        self.padMac = None
-        self.RS_Data = data
-        
-    def setID(self,rs_id):
-        self.padMac = None
-        self.RS_Data = None
-        self.RS_id = rs_id
-        
-    def setPad(self,mac):
-        self.RS_Data = None
-        self.RS_id = None
-        self.padMac = mac
-        
-    def getReasonValue(self):
-        if self.RS_Data is not None:
-            return self.RS_Data
-        elif self.RS_id is not None:
-            if self.RS_id in self.RS_DICT:
-                return self.RS_DICT[self.RS_id]
-        elif self.padMac is not None:
-            return self.padMac
+#     
+# class ReasonData():
+#     RS_DICT = {}
+#     def __init__(self):
+#         self.RS_Data = None
+#         self.RS_id = None
+#         self.padMac = None
+#         
+#     def setData(self,data):
+#         self.RS_id = None
+#         self.padMac = None
+#         self.RS_Data = data
+#         
+#     def setID(self,rs_id):
+#         self.padMac = None
+#         self.RS_Data = None
+#         self.RS_id = rs_id
+#         
+#     def setPad(self,mac):
+#         self.RS_Data = None
+#         self.RS_id = None
+#         self.padMac = mac
+#         
+#     def getReasonValue(self):
+#         if self.RS_Data is not None:
+#             return self.RS_Data
+#         elif self.RS_id is not None:
+#             if self.RS_id in self.RS_DICT:
+#                 return self.RS_DICT[self.RS_id]
+#         elif self.padMac is not None:
+#             return self.padMac
         
     

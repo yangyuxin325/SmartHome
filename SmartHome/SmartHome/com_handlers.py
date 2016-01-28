@@ -10,18 +10,18 @@ from datetime import datetime
 def doDataProcess(session):
     for dev in session.dev_set.values():
         dataitem = dev.get('DisCount')
+        from handlers import doDataParam
         if dataitem is None or dataitem.getValue() == 0:
             for dataitem in dev.values():
                 if dataitem:
                     flag = dataitem.getChangeFlag()
                     if flag:
-                        from handlers import doDataParam
                         paradata = {'ename' : dataitem.ename,
                                     'value' : dataitem.value,
                                     'error_flag' : dataitem.error_flag,
                                     'time' : dataitem.time,
-                                    'dis_flag' : dataitem.state,
-                                    'dis_time' : dataitem.stateTime,
+                                    'dis_flag' : dev.state,
+                                    'dis_time' : dev.stateTime,
                                     'change_flag' : flag
                                     }
                         session.putResultQueue(doDataParam,paradata)
@@ -43,8 +43,8 @@ def doDataProcess(session):
                                     'value' : dataitem.value,
                                     'error_flag' : dataitem.error_flag,
                                     'time' : dataitem.time,
-                                    'dis_flag' : dataitem.state,
-                                    'dis_time' : dataitem.stateTime,
+                                    'dis_flag' : dev.state,
+                                    'dis_time' : dev.stateTime,
                                     'change_flag' : change_flag
                                     }
                         session.putResultQueue(doDataParam,paradata)

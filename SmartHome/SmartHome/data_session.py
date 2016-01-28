@@ -33,8 +33,6 @@ class data_session():
         self.baudrate = 9600
         self.interval = 0.5
         self.dev_set = dev_set
-        self.errCmdList = []
-        self.errStartTime = time.time()
         self.resultQueue = multiprocessing.Queue()
         self.taskQueue = multiprocessing.Queue()
         self.rLock = multiprocessing.Lock()
@@ -45,12 +43,13 @@ class data_session():
         self.stateTime = None
         self.com = None
         self.periods = None
-        
-        self.errcmd = None
-        self.cycleCmdDeque= self.dev_set.getCmdSet()
-        self.cycleCmdDeque.append({"id" : 0, "cmd" : "", "dev_id" : -1})
         self.ctrlCmdDeque = deque()
-        self.errCmdDeque = errcmd_deque()
+        
+#         self.errcmd = None
+#         self.errStartTime = time.time()
+#         self.cycleCmdDeque= self.dev_set.getCmdSet()
+#         self.cycleCmdDeque.append({"id" : 0, "cmd" : "", "dev_id" : -1})
+#         self.errCmdDeque = errcmd_deque()
         
     def getSessionState(self):
         return {'state' : self.state, 'stateTime' : self.stateTime}
@@ -84,9 +83,6 @@ class data_session():
     
     def getRealValue(self, dev_name, conf_name):
         return self.dev_set.getRealValue()
-        
-    def getData(self, dev_name, conf_name):
-        return self.dev_set.getData(dev_name, conf_name)
     
     def setData(self, dev_name, conf_name, data):
         self.dev_set.setData(dev_name, conf_name, data)
@@ -153,6 +149,11 @@ class data_session():
         self.start()
             
     def start(self):
+        self.errcmd = None
+        self.errStartTime = time.time()
+        self.cycleCmdDeque= self.dev_set.getCmdSet()
+        self.cycleCmdDeque.append({"id" : 0, "cmd" : "", "dev_id" : -1})
+        self.errCmdDeque = errcmd_deque()
         if not self.isOpen() :
             self.openSerial()
         else:

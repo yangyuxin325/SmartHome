@@ -186,7 +186,7 @@ class device(UserDict):
         if self.state :
             return value
         else:
-            if (datetime.now() - self.stateTime).total_seconds() > dis_interval * 60:
+            if (datetime.now() - self.stateTime).total_seconds() < dis_interval * 60:
                 return value
             else:
                 pass
@@ -199,8 +199,8 @@ class device(UserDict):
             pass
     
     def setData(self, conf_name, data):
-        if isinstance(data, basic_data) and self.get(conf_name):
-            self.get(conf_name).setData(data)
+        if conf_name in self:
+            self[conf_name].setData(data)
             if conf_name == 'DisCount':
                 self.disCount = data.value
                 state = None

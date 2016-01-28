@@ -90,7 +90,7 @@ class data_server():
                 return value
             else:
                 dis_interval = self.dev_data.getDisInterval(session_name, dev_name, conf_name)
-                if (datetime.now() - self.stateTime).total_seconds() > dis_interval * 60:
+                if (datetime.now() - self.stateTime).total_seconds() < dis_interval * 60:
                     return value
                 else:
                     pass
@@ -102,13 +102,6 @@ class data_server():
             return self.dev_data.getRealValue(data_conf.get('session_name'), 
                                               data_conf.get('dev_name'), 
                                               data_conf.get('conf_name'))
-        else:
-            pass
-        
-    def getData(self, data_conf):
-        dataitem = self.getDataItem(data_conf)
-        if dataitem:
-            return dataitem.getData()
         else:
             pass
     
@@ -285,12 +278,6 @@ class sessionSet(UserDict):
     def getDataItem(self, session_name, dev_name, conf_name):
         if session_name in self:
             return self[session_name].getDataItem(dev_name, conf_name)
-        else:
-            pass
-        
-    def getData(self, session_name, dev_name, conf_name):
-        if session_name in self:
-            return self[session_name].getData(dev_name, conf_name)
         else:
             pass
         

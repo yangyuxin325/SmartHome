@@ -132,12 +132,6 @@ class deviceSet(UserDict):
                     else:
                         pass
             sqlConnection.close()
-            
-#     def getDeviceData(self, dev_name):
-#         if dev_name in self.name_idMap:
-#             return self.get(self.name_idMap[dev_name])
-#         else:
-#             pass
         
     def getDataItem(self, dev_name, conf_name):
         dev_data = self.getDeviceData(dev_name)
@@ -157,13 +151,6 @@ class deviceSet(UserDict):
         dev_data = self.getDeviceData(dev_name)
         if dev_data:
             return dev_data.getRealValue(conf_name)
-        else:
-            pass
-            
-    def getData(self, dev_name, conf_name):
-        dev_data = self.getDeviceData(dev_name)
-        if dev_data:
-            return dev_data.get(conf_name)
         else:
             pass
         
@@ -205,7 +192,10 @@ class deviceSet(UserDict):
     
     def ParseData(self, dev_id, data):
         if self.get(dev_id):
-            self[dev_id].dataParse(data)
+            try:
+                self[dev_id].dataParse(data)
+            except Exception as e:
+                print 'deviceSet ParseData Error :',e
         else:
             print "there is not device which it dev_id = " , dev_id , 
             " in Session ", self.session_name
