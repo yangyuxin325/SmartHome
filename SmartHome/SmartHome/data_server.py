@@ -288,11 +288,11 @@ class sessionSet(UserDict):
     def stopSession(self, session_name):
         try:
             if session_name in self.process_map :
-                if not self.session_map[session_name].alive:
+                if not self.process_map[session_name].alive:
                     del self.process_map[session_name]
                 else :
-                    self.session_map[session_name].putTaskQueue({'MsgType' : 1, 'data' : {'state' : 0}})
-                    while self.dataSession_map[session_name].alive():
+                    self[session_name].putTaskQueue({'MsgType' : 1, 'data' : {'state' : 0}})
+                    while self.process_map[session_name].alive():
                         time.sleep(3)
                     del self.process_map[session_name]
                 if session_name in self.thread_map :
@@ -307,11 +307,11 @@ class sessionSet(UserDict):
     def startSession(self, session_name):
         try:
             if session_name in self.process_map :
-                if not self.session_map[session_name].alive:
+                if not self[session_name].alive:
                     del self.process_map[session_name]
                 else :
-                    self.session_map[session_name].putTaskQueue({'MsgType' : 1, 'data' : {'state' : 0}})
-                    while self.dataSession_map[session_name].alive():
+                    self[session_name].putTaskQueue({'MsgType' : 1, 'data' : {'state' : 0}})
+                    while self[session_name].alive():
                         time.sleep(3)
                     del self.process_map[session_name]
                 if session_name in self.thread_map :
@@ -322,28 +322,28 @@ class sessionSet(UserDict):
                     pass
         except Exception as e:
             print "startSession Error : " , e
-        if session_name in self.session_map :
-            p = multiprocessing.Process(target=self.session_map[session_name])
+        if session_name in self.keys():
+            p = multiprocessing.Process(target=self[session_name])
             self.process_map[session_name] = p
             p.start()
-            th = MyThread(self.session_map[session_name],self.handleResult)
+            th = MyThread(self[session_name],self.handleResult)
             self.thread_map[session_name] = th
             th.start()
         else:
             pass
         
     def startPatrol(self):
-        for session_name in self.session_map:
-            self.session_map[session_name].useflag = True
-            p = multiprocessing.Process(target=self.session_map[session_name])
+        for session_name in self.keys():
+            self[session_name].useflag = True
+            p = multiprocessing.Process(target=self[session_name])
             self.process_map[session_name] = p
             p.start()
-            th = MyThread(self.session_map[session_name],self.handleResult)
+            th = MyThread(self[session_name],self.handleResult)
             self.thread_map[session_name] = th
             th.start()
             
     def stopPatrol(self):
-        for session_name in self.session_map:
+        for session_name in self:
             self.stopSession(session_name)
         
     def init(self, db):
@@ -363,7 +363,7 @@ class sessionSet(UserDict):
                                     devSet,
                                     self.handleTask)
                 sess.setSessionState(session['session_state'], session['updatetime'])
-                self.session_map[session['session_name']] = sess
+                self[session['session_name']] = sess
             sqlConnection.close()
         else:
             pass

@@ -14,10 +14,8 @@ from copy import deepcopy
 from sock_session import AsyncServer
 from sock_session import AsyncSession
 from sock_session import AsyncClient
-import com_handlers
 import struct
 import json
-from handlers import RequestProtocolData
 from UserDict import UserDict
 from data_server import data_server
 
@@ -34,7 +32,8 @@ def handleData(sockSession):
             elif body['status_code'] == 254:
                 pass
             else:
-                RequestProtocolData(head,body,sockSession)
+                import handlers.RequestProtocolData
+                handlers.RequestProtocolData(head,body,sockSession)
         else:
             print '+++++++++++++++++++'
             #pass
@@ -61,6 +60,7 @@ def handleDataAct(sockSession):
 
 # data_session中的任务处理句柄
 def handleTask(data_sess, data):
+    import com_handlers.MsgDict
     com_handlers.MsgDict[data['MsgType']](data_sess,data)
 
 # MyThread中的结果处理句柄

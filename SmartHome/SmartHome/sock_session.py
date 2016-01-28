@@ -11,7 +11,6 @@ import torndb
 import threading
 import struct
 import time
-import SmartServer
 
 class AsyncSession(asyncore.dispatcher_with_send):
     def __init__(self, host, port, handleData, server_para, db=None):
@@ -56,6 +55,7 @@ class AsyncSession(asyncore.dispatcher_with_send):
     def handle_connect(self):
         asyncore.dispatcher_with_send.handle_connect(self)
         if self.connected:
+            import SmartServer.doConnect
             SmartServer.doConnect(self)
             self.timer = threading.Timer(3,self.handle_timer)
             self.timer.start()
@@ -65,6 +65,7 @@ class AsyncSession(asyncore.dispatcher_with_send):
     def handle_close(self):
         asyncore.dispatcher_with_send.handle_close(self)
         try:
+            import SmartServer.doClose
             SmartServer.doClose(self)
             time.sleep(1)
             self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -133,6 +134,7 @@ class AsyncClient(asyncore.dispatcher_with_send):
         if self.sqlConnection:
             self.sqlConnection.close()
             self.sqlConnection = None
+            import SmartServer.doClose
             SmartServer.doClose(self)
         
 class AsyncServer(asyncore.dispatcher):
