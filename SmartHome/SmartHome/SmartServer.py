@@ -65,7 +65,10 @@ def handleTask(data_sess, data):
 
 # MyThread中的结果处理句柄
 def handleResult(result_data):
-    result_data['handle'](result_data['data'])
+    if result_data['handle']:
+        result_data['handle'](result_data['data'])
+    else:
+        pass
 
 DOhandles_Args_dict = {
                        'region' : {'handleData' : handleDataAct},
@@ -127,6 +130,26 @@ class DSAURServer(object):
         if not cls.instance:
             cls.instance = super(DSAURServer, cls).__new__(cls, *args, **kwarg)
         return cls.instance
+    
+    def getDataConf(self, ename):
+        if self.server:
+            return self.server.getDataConf(ename)
+        else:
+            pass
+        
+    def getReason(self, ename):
+        data_conf = self.getDataConf(ename)
+        if data_conf:
+            return self.server.getReason(data_conf)
+        else:
+            pass
+        
+    def setReason(self, ename):
+        data_conf = self.getDataConf(ename)
+        if data_conf:
+            self.server.setReason(data_conf)
+        else:
+            pass
     
     def getLogicStartFlag(self):
         return self.logic_start_flag
@@ -380,7 +403,7 @@ class RegionDataServer(data_server):
         return flag
     
 def doUnitInit(unit_server):
-    for node_ip in unit_server.node_server_map.keys:
+    for node_ip in unit_server.node_server_map.keys():
         if unit_server.getNodeState(node_ip):
             unit_server.setNodeState(node_ip, False, datetime.now())
         else:

@@ -91,6 +91,12 @@ class data_session():
     def setData(self, dev_name, conf_name, data):
         self.dev_set.setData(dev_name, conf_name, data)
         
+    def getReason(self, dev_name, conf_name):
+        return self.dev_set.getReason(dev_name, conf_name)
+    
+    def setReason(self, dev_name, conf_name, reason):
+        self.dev_set.setReason(dev_name, conf_name, reason)
+        
     def putResultQueue(self, handle, data):
         self.rLock.acquire()
         self.resultQueue.put_nowait({'handle' : handle, 'data' : data})
@@ -190,7 +196,7 @@ class data_session():
                 else:
                     print "there is not cmds in queue!"
                     time.sleep(1)
-                    if len(self.errCmdDeque) == 0:
+                    if self.errCmdDeque.empty() == 0:
                         self.closeSerial()
                         self.start()
                         return

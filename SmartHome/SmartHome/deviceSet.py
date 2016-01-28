@@ -170,7 +170,9 @@ class deviceSet(UserDict):
     def setData(self, dev_name, conf_name, data):
         if dev_name in self.name_idMap:
             if self.get(self.name_idMap[dev_name]):
-                self.get(self.name_idMap[dev_name]).setData(conf_name, data)
+                self[self.name_idMap[dev_name]].setData(conf_name, data)
+            else:
+                pass
         else:
             pass
             
@@ -183,6 +185,21 @@ class deviceSet(UserDict):
     def getConnectState(self, key):
         if self.get(key):
             return self.get(key).getConnectState()
+        else:
+            pass
+        
+    def setReason(self, dev_name, conf_name, reason):
+        if dev_name in self.name_idMap:
+            if self.get(self.name_idMap[dev_name]):
+                self[self.name_idMap[dev_name]].setReason(conf_name, reason)
+            else:
+                pass
+        else:
+            pass
+        
+    def getReason(self, dev_name, conf_name):
+        if self.get(dev_name):
+            return self.get(dev_name).getReason(conf_name)
         else:
             pass
     

@@ -16,7 +16,7 @@ doRequest = {}
 
 local_name = u'西山游泳馆'
 
-def packDataInfo(data,reason,code):
+def packDataInfo(dataitem,dis_flag,dis_time,flag,reason,code):
     try:
         head = range(4)
         head[0] = 1
@@ -24,17 +24,20 @@ def packDataInfo(data,reason,code):
         head[2] = 15
         head[3] = 0
         body = {}
-        body['ename'] = data.ename
-        body['value'] = data.value
-        body['error_flag'] = data.error_flag
-        body['time'] = str(data.time)[:19]
-        body['dis_flag'] = data.dis_flag
-        body['dis_time'] = str(data.dis_time)[:19]
-#         if data.ename in SmartServer.data_server.dataPriors:
-#             body['prior_flag'] = True
-#             body['prior'] = SmartServer.data_server.dataPriors[data.ename]
-#         else:
-#             body['prior_flag'] = False
+        body['ename'] = dataitem.ename
+        body['value'] = dataitem.value
+        body['error_flag'] = dataitem.error_flag
+        body['time'] = str(dataitem.time)[:19]
+        body['dis_flag'] = dis_flag
+        body['dis_time'] = str(dis_time)[:19]
+        body['change_flag'] = flag
+        dataConf = SmartServer.DSAURServer().getDataConf(dataitem.ename)
+        prior = dataConf.get('prior')
+        if prior:
+            body['prior_flag'] = True
+            body['prior'] = prior
+        else:
+            body['prior_flag']  = False
         if reason:
             body['reason_flag'] = True
             rs_body = {}

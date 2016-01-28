@@ -49,6 +49,7 @@ class data_param(basic_data):
             self.__count = 0
             self.__start_time = None
         self.__reason = None
+        self.__reasonType = None
     
     def __str__(self):
         return '{ename : %s, value : %s, error_flag : %s, time : %s}' \
@@ -119,10 +120,11 @@ class data_param(basic_data):
                             self.__changeFlag = 1
                             self.time = datetime.now()
                         else:
-                            pass
+                            self.__changeFlag = 0
                     else:
-                        pass
+                        self.__changeFlag = 0
                 else:
+                    self.__changeFlag = 0
                     self.__start_time = datetime.now()
             else:
                 pass
@@ -143,9 +145,18 @@ class data_param(basic_data):
             
     def setReason(self, reason):
         self.__reason = reason
+        if isinstance(reason, basic_data):
+            self.__reasonType = 3
+        elif isinstance(reason, int):
+            self.__reasonType = 1
+        else:
+            self.__reasonType = 2
         
     def getReason(self):
-        return self.__reason
+        data = {'reason' : self.__reason, 'reasonType' : self.__reasonType}
+        self.__reason = None
+        self.__reasonType = None
+        return data
     
 class ReasonData():
     RS_DICT = {}

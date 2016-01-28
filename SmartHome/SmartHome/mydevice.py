@@ -254,6 +254,18 @@ class device(UserDict):
                 self[conf_name].setChangeFlag(3)
         else:
             pass
+        
+    def getReason(self, conf_name):
+        if conf_name in self:
+            return self[conf_name].getReason()
+        else:
+            pass
+        
+    def setReason(self, conf_name, reason):
+        if conf_name in self:
+            self[conf_name].setReason(reason)
+        else:
+            pass
     
 class infrared(device):
     
