@@ -43,14 +43,21 @@ def handleData(sockSession):
 # 主动socket数据处理
 def handleDataAct(sockSession):
     buf1 = sockSession.recv(16)
+    databuf = ''
     if len(buf1) == 16 :
         head = struct.unpack('!4i', buf1)
         if head[3] > 0 :
-            buf2 = sockSession.recv(head[3])
+            rd_len = head[3]
+            while len(databuf) < rd_len:
+                rd_len = rd_len - len(databuf)
+                tempdata = sockSession.recv(rd_len)
+                databuf.join(tempdata)
+            buf2 = databuf
+            sockSession.databuf = sockSession.databuf[head[3]:]
             body = json.loads(buf2)
             print body
             if body['status_code'] == 255:
-                DSAURServer().SendUploadData(buf1+buf2)
+                DSAURServer().SendUploadData(buf1.join(buf2))
             else:
                 pass
         else:
@@ -257,10 +264,13 @@ class DSAURServer(object):
             print 'No Data init!'
             
     def SendUploadData(self,data):
-        if self.server.upload_Session is not None:
-            self.server.upload_Session.sendData(data)
-        for client in self.client_map.values():
-            client.sendData(data)
+        try:
+            if self.server.upload_Session is not None:
+                self.server.upload_Session.sendData(data)
+            for client in self.client_map.values():
+                client.sendData(data)
+        except Exception as e:
+            print 'SendUploadData Error :' , e
             
     def getDataSession(self, session_name):
         return self.server.getDataSession(session_name)
@@ -279,7 +289,7 @@ def PingIP(strIp):
 def doRegionInit(region_server):
     for key, server in region_server.unit_server_map.items():
         if server.state is False:
-            region_server.setUnitState(key, False)
+            region_server.setUnitState(key, False, datetime.now())
         else:
             pass
         

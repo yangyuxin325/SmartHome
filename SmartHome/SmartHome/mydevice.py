@@ -266,6 +266,9 @@ class device(UserDict):
             self[conf_name].setReason(reason)
         else:
             pass
+        
+    def dataParse(self, data):
+        pass
     
 class infrared(device):
     
