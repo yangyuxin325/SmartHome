@@ -197,7 +197,7 @@ class data_session():
                 else:
                     print "there is not cmds in queue!"
                     time.sleep(1)
-                    if self.errCmdDeque.empty() == 0:
+                    if  self.errCmdDeque.empty():
                         self.closeSerial()
                         self.start()
                         return

@@ -67,8 +67,8 @@ def handleDataAct(sockSession):
 
 # data_session中的任务处理句柄
 def handleTask(data_sess, data):
-    import com_handlers.MsgDict
-    com_handlers.MsgDict[data['MsgType']](data_sess,data)
+    from com_handlers import MsgDict
+    MsgDict[data['MsgType']](data_sess,data)
 
 # MyThread中的结果处理句柄
 def handleResult(result_data):
