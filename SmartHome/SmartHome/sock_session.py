@@ -30,7 +30,7 @@ class AsyncSession(asyncore.dispatcher_with_send):
         
     def handle_timer(self):
         if self.connected:
-            print self.addr, self.connected
+#             print self.addr, self.connected
             self.send(struct.pack('!4i', 0, 0, 0, 0))
             self.timer = threading.Timer(3,self.handle_timer)
             self.timer.start()
