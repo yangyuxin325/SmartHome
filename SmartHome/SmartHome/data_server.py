@@ -31,6 +31,9 @@ class data_server():
         self.handleResult = None
         self.doConnectState = doConnectState
         
+    def getDataConf(self, ename):
+        return self.dataConfs.get(ename)
+        
     def startWork(self):
         if self.dev_data:
             self.dev_data.startPatrol()
@@ -65,11 +68,15 @@ class data_server():
             self.stateTime = stateTime
         
     def getDataItem(self, data_conf):
-        if isinstance(data_conf, UserDict):
+        data_type =  data_conf.get('data_type')
+        if data_type is None:
             return self.dev_data.getDataItem(data_conf.get('session_name'), 
                                       data_conf.get('dev_name'), 
                                       data_conf.get('conf_name'))
         else:
+            dataset = self.udev_data.get(data_conf.get('data_type'))
+            if dataset:
+                return dataset.get(data_conf.get('data_ename'))
             pass
         
     def getDataValue(self, data_conf):
@@ -83,7 +90,7 @@ class data_server():
                 return value
             else:
                 dis_interval = self.dev_data.getDisInterval(session_name, dev_name, conf_name)
-                if (datetime.now() - self.stateTime).total_seconds() > dis_interval * 60:
+                if (datetime.now() - self.stateTime).total_seconds() < dis_interval * 60:
                     return value
                 else:
                     pass
@@ -97,20 +104,6 @@ class data_server():
                                               data_conf.get('conf_name'))
         else:
             pass
-        
-    def getData(self, data_conf):
-        if data_conf.get('data_type') is None:
-            if isinstance(data_conf, UserDict):
-                return self.dev_data.getData(data_conf.get('session_name'), 
-                                                  data_conf.get('dev_name'), 
-                                                  data_conf.get('conf_name'))
-            else:
-                pass
-        else:
-            dataset = self.udev_data.get(data_conf.get('data_type'))
-            if dataset:
-                return dataset.get(data_conf.get('data_ename'))
-            pass
     
     def setData(self, data_conf, data):
         data_type =  data_conf.get('data_type')
@@ -120,11 +113,38 @@ class data_server():
                                   data_conf.get('conf_name'),
                                   data)
         else:
-            
             if data_type in self.udev_data:
                 data_ename = data_conf.get('ename_name')
                 if data_ename in self.udev_data[data_type]:
                     self.udev_data[data_type][data_ename].setData(data)
+                else:
+                    pass
+            else:
+                pass
+    
+    def getReason(self, data_conf):
+        dataitem = self.getDataItem(data_conf)
+        if dataitem:
+            return dataitem.getReason()
+        else:
+            pass
+        
+    def setReason(self, data_conf, reason):
+        data_type =  data_conf.get('data_type')
+        if data_type is None:
+            self.dev_data.setReason(data_conf.get('session_name'), 
+                                  data_conf.get('dev_name'), 
+                                  data_conf.get('conf_name'),
+                                  reason)
+        else:
+            if data_type in self.udev_data:
+                data_ename = data_conf.get('ename_name')
+                if data_ename in self.udev_data[data_type]:
+                    self.udev_data[data_type][data_ename].setReason(reason)
+                else:
+                    pass
+            else:
+                pass
                     
     def initServerState(self, init_ip):
         db = self.db
@@ -261,12 +281,6 @@ class sessionSet(UserDict):
         else:
             pass
         
-    def getData(self, session_name, dev_name, conf_name):
-        if session_name in self:
-            return self[session_name].getData(dev_name, conf_name)
-        else:
-            pass
-        
     def setData(self, session_name, dev_name, conf_name, data):
         if session_name in self:
             self[session_name].setData(dev_name,conf_name,data)
@@ -282,6 +296,18 @@ class sessionSet(UserDict):
     def getRealValue(self, session_name, dev_name, conf_name):
         if session_name in self:
             return self[session_name].getRealValue(dev_name, conf_name)
+        else:
+            pass
+        
+    def getReason(self, session_name, dev_name, conf_name):
+        if session_name in self:
+            return self[session_name].getReason(dev_name, conf_name)
+        else:
+            pass
+        
+    def setReason(self, session_name, dev_name, conf_name, reason):
+        if session_name in self:
+            self[session_name].setReason(dev_name, conf_name, reason)
         else:
             pass
             
@@ -322,7 +348,7 @@ class sessionSet(UserDict):
                     pass
         except Exception as e:
             print "startSession Error : " , e
-        if session_name in self.keys():
+        if session_name in self :
             p = multiprocessing.Process(target=self[session_name])
             self.process_map[session_name] = p
             p.start()
@@ -343,7 +369,7 @@ class sessionSet(UserDict):
             th.start()
             
     def stopPatrol(self):
-        for session_name in self:
+        for session_name in self.keys():
             self.stopSession(session_name)
         
     def init(self, db):
@@ -352,7 +378,7 @@ class sessionSet(UserDict):
             sqlString = "select SessionState.session_name, SessionState.session_state,\
             SessionState.updatetime,DataSession.session_id from SessionState inner join \
             DataSession on SessionState.session_name = DataSession.session_name and \
-            server_name = %s"
+            server_name = %s  and  DataSession.session_name = '地暖红外通道' "
             sessions = sqlConnection.query(sqlString, self.server_name)
             for session in sessions:
                 devSet = deviceSet(session['session_name'], db)
