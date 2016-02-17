@@ -30,7 +30,7 @@ class AsyncSession(asyncore.dispatcher_with_send):
         
     def handle_timer(self):
         if self.connected:
-            print self.addr, self.connected
+#             print self.addr, self.connected
             self.send(struct.pack('!4i', 0, 0, 0, 0))
             self.timer = threading.Timer(3,self.handle_timer)
             self.timer.start()
@@ -43,7 +43,10 @@ class AsyncSession(asyncore.dispatcher_with_send):
         self.timer.cancel()
         if self.connected:
             if self.handleData:
-                self.handleData(self)
+                try:
+                    self.handleData(self)
+                except Exception as e:
+                    print 'handle_Read Error : ', e
             else:
                 buf = self.recv(100)
                 print buf.strip()
@@ -65,8 +68,8 @@ class AsyncSession(asyncore.dispatcher_with_send):
     def handle_close(self):
         asyncore.dispatcher_with_send.handle_close(self)
         try:
-            import SmartServer.doClose
-            SmartServer.doClose(self)
+            from SmartServer import doClose
+            doClose(self)
             time.sleep(1)
             self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
             self.connect(self.addr)

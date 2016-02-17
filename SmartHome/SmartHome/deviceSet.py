@@ -132,12 +132,6 @@ class deviceSet(UserDict):
                     else:
                         pass
             sqlConnection.close()
-            
-#     def getDeviceData(self, dev_name):
-#         if dev_name in self.name_idMap:
-#             return self.get(self.name_idMap[dev_name])
-#         else:
-#             pass
         
     def getDataItem(self, dev_name, conf_name):
         dev_data = self.getDeviceData(dev_name)
@@ -159,18 +153,13 @@ class deviceSet(UserDict):
             return dev_data.getRealValue(conf_name)
         else:
             pass
-            
-    def getData(self, dev_name, conf_name):
-        dev_data = self.getDeviceData(dev_name)
-        if dev_data:
-            return dev_data.get(conf_name)
-        else:
-            pass
         
     def setData(self, dev_name, conf_name, data):
         if dev_name in self.name_idMap:
             if self.get(self.name_idMap[dev_name]):
-                self.get(self.name_idMap[dev_name]).setData(conf_name, data)
+                self[self.name_idMap[dev_name]].setData(conf_name, data)
+            else:
+                pass
         else:
             pass
             
@@ -185,10 +174,28 @@ class deviceSet(UserDict):
             return self.get(key).getConnectState()
         else:
             pass
+        
+    def setReason(self, dev_name, conf_name, reason):
+        if dev_name in self.name_idMap:
+            if self.get(self.name_idMap[dev_name]):
+                self[self.name_idMap[dev_name]].setReason(conf_name, reason)
+            else:
+                pass
+        else:
+            pass
+        
+    def getReason(self, dev_name, conf_name):
+        if self.get(dev_name):
+            return self.get(dev_name).getReason(conf_name)
+        else:
+            pass
     
     def ParseData(self, dev_id, data):
         if self.get(dev_id):
-            self[dev_id].dataParse(data)
+            try:
+                self[dev_id].dataParse(data)
+            except Exception as e:
+                print 'deviceSet ParseData Error :',e
         else:
             print "there is not device which it dev_id = " , dev_id , 
             " in Session ", self.session_name

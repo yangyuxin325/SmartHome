@@ -378,7 +378,8 @@ class sessionSet(UserDict):
             sqlString = "select SessionState.session_name, SessionState.session_state,\
             SessionState.updatetime,DataSession.session_id from SessionState inner join \
             DataSession on SessionState.session_name = DataSession.session_name and \
-            server_name = %s  and  DataSession.session_name = '地暖红外通道' "
+            server_name = %s"
+#             and  DataSession.session_name = '地暖红外通道' 
             sessions = sqlConnection.query(sqlString, self.server_name)
             for session in sessions:
                 devSet = deviceSet(session['session_name'], db)

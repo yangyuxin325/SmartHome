@@ -49,6 +49,7 @@ class data_param(basic_data):
             self.__count = 0
             self.__start_time = None
         self.__reason = None
+        self.__reasonType = None
     
     def __str__(self):
         return '{ename : %s, value : %s, error_flag : %s, time : %s}' \
@@ -64,9 +65,6 @@ class data_param(basic_data):
                 self.doWriteReturn(self)
         else:
             pass
-                    
-    def getData(self):
-        return self.__data
     
     def getDisInterval(self):
         return self.__constraint['dis_interval']
@@ -100,7 +98,8 @@ class data_param(basic_data):
                 self.value = value
                 self.__changeFlag = 2
                 self.time = datetime.now()
-            elif not self.value or math.fabs(value - self.value) > self.__constraint['min_variation']:
+                self.error_flag = error_flag
+            elif self.value is None or math.fabs(value - self.value) > self.__constraint['min_variation']:
                 self.value = value
                 self.__changeFlag = 1
                 self.time = datetime.now()
@@ -119,10 +118,11 @@ class data_param(basic_data):
                             self.__changeFlag = 1
                             self.time = datetime.now()
                         else:
-                            pass
+                            self.__changeFlag = 0
                     else:
-                        pass
+                        self.__changeFlag = 0
                 else:
+                    self.__changeFlag = 0
                     self.__start_time = datetime.now()
             else:
                 pass
@@ -143,39 +143,48 @@ class data_param(basic_data):
             
     def setReason(self, reason):
         self.__reason = reason
+        if isinstance(reason, dict):
+            self.__reasonType = 3
+        elif isinstance(reason, int):
+            self.__reasonType = 1
+        else:
+            self.__reasonType = 2
         
     def getReason(self):
-        return self.__reason
-    
-class ReasonData():
-    RS_DICT = {}
-    def __init__(self):
-        self.RS_Data = None
-        self.RS_id = None
-        self.padMac = None
-        
-    def setData(self,data):
-        self.RS_id = None
-        self.padMac = None
-        self.RS_Data = data
-        
-    def setID(self,rs_id):
-        self.padMac = None
-        self.RS_Data = None
-        self.RS_id = rs_id
-        
-    def setPad(self,mac):
-        self.RS_Data = None
-        self.RS_id = None
-        self.padMac = mac
-        
-    def getReasonValue(self):
-        if self.RS_Data is not None:
-            return self.RS_Data
-        elif self.RS_id is not None:
-            if self.RS_id in self.RS_DICT:
-                return self.RS_DICT[self.RS_id]
-        elif self.padMac is not None:
-            return self.padMac
+        data = {'reason' : self.__reason, 'reasonType' : self.__reasonType}
+        self.__reason = None
+        self.__reasonType = None
+        return data
+#     
+# class ReasonData():
+#     RS_DICT = {}
+#     def __init__(self):
+#         self.RS_Data = None
+#         self.RS_id = None
+#         self.padMac = None
+#         
+#     def setData(self,data):
+#         self.RS_id = None
+#         self.padMac = None
+#         self.RS_Data = data
+#         
+#     def setID(self,rs_id):
+#         self.padMac = None
+#         self.RS_Data = None
+#         self.RS_id = rs_id
+#         
+#     def setPad(self,mac):
+#         self.RS_Data = None
+#         self.RS_id = None
+#         self.padMac = mac
+#         
+#     def getReasonValue(self):
+#         if self.RS_Data is not None:
+#             return self.RS_Data
+#         elif self.RS_id is not None:
+#             if self.RS_id in self.RS_DICT:
+#                 return self.RS_DICT[self.RS_id]
+#         elif self.padMac is not None:
+#             return self.padMac
         
     

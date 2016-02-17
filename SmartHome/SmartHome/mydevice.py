@@ -186,7 +186,7 @@ class device(UserDict):
         if self.state :
             return value
         else:
-            if (datetime.now() - self.stateTime).total_seconds() > dis_interval * 60:
+            if (datetime.now() - self.stateTime).total_seconds() < dis_interval * 60:
                 return value
             else:
                 pass
@@ -199,8 +199,8 @@ class device(UserDict):
             pass
     
     def setData(self, conf_name, data):
-        if isinstance(data, basic_data) and self.get(conf_name):
-            self.get(conf_name).setData(data)
+        if conf_name in self:
+            self[conf_name].setData(data)
             if conf_name == 'DisCount':
                 self.disCount = data.value
                 state = None
@@ -230,7 +230,7 @@ class device(UserDict):
                 else:
                     pass
             else:
-                pass
+                self.setDataValue('DisCount',self['DisCount'].value)
         else:
             pass
         if state != self.state:
@@ -254,6 +254,21 @@ class device(UserDict):
                 self[conf_name].setChangeFlag(3)
         else:
             pass
+        
+    def getReason(self, conf_name):
+        if conf_name in self:
+            return self[conf_name].getReason()
+        else:
+            pass
+        
+    def setReason(self, conf_name, reason):
+        if conf_name in self:
+            self[conf_name].setReason(reason)
+        else:
+            pass
+        
+    def dataParse(self, data):
+        pass
     
 class infrared(device):
     
