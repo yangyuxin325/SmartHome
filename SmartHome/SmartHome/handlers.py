@@ -21,7 +21,7 @@ def doDataParam(data):
     from SmartServer import DSAURServer
     data_conf = DSAURServer().getDataConf(ename)
     prior = data_conf.get('prior')
-    rs_data = DSAURServer().getReason(ename)
+#     rs_data = DSAURServer().getReason(ename)
     rs_data = None
     DSAURServer().putDataToCache(ename, {'data' : data, 'reason' : rs_data})
     data = packProtocolhandlers['DataInfo'](data,prior,rs_data,255)
