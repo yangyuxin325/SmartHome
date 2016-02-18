@@ -37,9 +37,7 @@ def doDataProcess(session):
                     if dataitem:
                         change_flag = 3
                         if dataitem.ename == 'DisCount':
-                            change_flag = flag
-                        else:
-                            pass
+                            continue
                         paradata = {'ename' : dataitem.ename,
                                     'value' : dataitem.value,
                                     'error_flag' : dataitem.error_flag,

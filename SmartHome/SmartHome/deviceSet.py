@@ -26,7 +26,17 @@ def HexToString(array):
     return snd
 
 def doDeviceState(device):
-    pass
+    dataitem = device.get('DisCount')
+    flag = dataitem.getChangeFlag()
+    if flag:
+        paradata = {'ename' : dataitem.ename,
+                    'value' : dataitem.value,
+                    'error_flag' : dataitem.error_flag,
+                    'time' : dataitem.time,
+                    'dis_flag' : device.state,
+                    'dis_time' : device.stateTime,
+                    'change_flag' : flag
+                    }
 
 def doWriteReturn(data_item):
     pass

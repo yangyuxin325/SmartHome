@@ -15,6 +15,23 @@ from com_handlers import doSessionState
 from errcmd_deque import errcmd_deque
 from collections import deque
 
+def NotifyDisConnect(session,dev):
+    dataitem = dev.get('DisCount')
+    flag = dataitem.getChangeFlag()
+    if flag:
+        paradata = {'ename' : dataitem.ename,
+                    'value' : dataitem.value,
+                    'error_flag' : dataitem.error_flag,
+                    'time' : dataitem.time,
+                    'dis_flag' : dev.state,
+                    'dis_time' : dev.stateTime,
+                    'change_flag' : 1
+                    }
+        from handlers import doDataParam
+        session.putResultQueue(doDataParam,paradata)
+    else:
+        pass
+
 def Sum_Right(array):
     check_sum = 0
     for i in range(len(array) -1):
@@ -319,9 +336,11 @@ class data_session():
     
     def __DisConnectProcess(self):
         if self.__cmd is not None:
-            self.dev_set.setDisConnect(self.__cmd["dev_id"],True)
-            if self.dev_set.getConnectState(self.__cmd["dev_id"]) is False:
+            flag = self.dev_set.setDisConnect(self.__cmd["dev_id"],True)
+#             if self.dev_set.getConnectState(self.__cmd["dev_id"]) is False:
+            if flag is False:
                 self.errCmdDeque.push(self.__cmd)
+                NotifyDisConnect(self,self.dev_set.get(self.__cmd["dev_id"]))
             else :
                 self.cycleCmdDeque.append(self.__cmd)
                 
