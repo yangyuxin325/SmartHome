@@ -51,9 +51,8 @@ def handleDataAct(sockSession):
             while len(databuf) < rd_len:
                 rd_len = rd_len - len(databuf)
                 tempdata = sockSession.recv(rd_len)
-                databuf.join(tempdata)
+                databuf = databuf.join(tempdata)
             buf2 = databuf
-            sockSession.databuf = sockSession.databuf[head[3]:]
             body = json.loads(buf2)
             print body
             if body['status_code'] == 255:

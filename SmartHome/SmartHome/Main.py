@@ -21,7 +21,7 @@ def get_ip_address( ifname):
                                         0x8915,  # SIOCGIFADDR
                                         struct.pack('256s', ifname[:15])
                                         )[20:24])
-
+import asyncore
 if __name__ == "__main__" :
     try:
         SmartServer.DSAURServer().Init(get_ip_address('eth0'), 8899)
