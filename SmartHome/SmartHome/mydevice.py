@@ -236,6 +236,7 @@ class device(UserDict):
             self.state = state
             if state is False:
                 self.doDisConnect(self)
+                return False
             else:
                 pass
         else:

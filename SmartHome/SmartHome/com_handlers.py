@@ -37,9 +37,7 @@ def doDataProcess(session):
                     if dataitem:
                         change_flag = 3
                         if dataitem.ename == 'DisCount':
-                            change_flag = flag
-                        else:
-                            pass
+                            continue
                         paradata = {'ename' : dataitem.ename,
                                     'value' : dataitem.value,
                                     'error_flag' : dataitem.error_flag,
@@ -53,10 +51,10 @@ def doDataProcess(session):
                         pass
             else:
                 pass
-#     from handlers import doCyclePeriod
-#     session.putResultQueue(doCyclePeriod,
-#                            {'session_name' : session.session_name,
-#                             'period' : session.periods})
+    from handlers import doCyclePeriod
+    session.putResultQueue(doCyclePeriod,
+                           {'session_name' : session.session_name,
+                            'period' : session.periods})
     
     
 def doSessionState(session, state):

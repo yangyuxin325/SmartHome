@@ -22,11 +22,18 @@ from data_server import data_server
 # 被动socket数据处理
 def handleData(sockSession):
     buf1 = sockSession.recv(16)
+    databuf = ''
     if len(buf1) == 16 :
         head = struct.unpack('!4i', buf1)
         if head[3] > 0 :
-            buf2 = sockSession.recv(head[3])
+            rd_len = head[3]
+            while len(databuf) < rd_len:
+                rd_len = rd_len - len(databuf)
+                tempdata = sockSession.recv(rd_len)
+                databuf = databuf.join(tempdata)
+            buf2 = databuf
             body = json.loads(buf2)
+            print body
             if body['status_code'] == 255:
                 DSAURServer().SendUploadData(buf1+buf2)
             elif body['status_code'] == 254:
