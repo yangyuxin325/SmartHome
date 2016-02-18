@@ -8,7 +8,6 @@ Created on 2015年12月16日
 from datetime import datetime
 from UserDict import UserDict
 from basedata import data_param
-from basedata import basic_data
 __metaclass__ = type
 
 device_Dict = {}

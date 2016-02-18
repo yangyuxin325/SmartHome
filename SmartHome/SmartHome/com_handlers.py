@@ -53,10 +53,10 @@ def doDataProcess(session):
                         pass
             else:
                 pass
-    from handlers import doCyclePeriod
-    session.putResultQueue(doCyclePeriod,
-                           {'session_name' : session.session_name,
-                            'period' : session.periods})
+#     from handlers import doCyclePeriod
+#     session.putResultQueue(doCyclePeriod,
+#                            {'session_name' : session.session_name,
+#                             'period' : session.periods})
     
     
 def doSessionState(session, state):
