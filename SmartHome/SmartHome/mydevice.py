@@ -230,7 +230,7 @@ class device(UserDict):
                 else:
                     pass
             else:
-                pass
+                self.setDataValue('DisCount',self['DisCount'].value)
         else:
             pass
         if state != self.state:

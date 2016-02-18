@@ -10,8 +10,22 @@ Created on 2015年12月21日
 # sqlString = 'select * from DataInfo where data_ename = %s'
 # data = sqlConnection.query(sqlString,'DN_PDG_1_GZ')
 # print data
-from deviceSet import DB_conf
-import serialsearch
+# from deviceSet import DB_conf
+# import serialsearch
+from UserDict import UserDict
+# from SmartHome.yang import yang
+# 
+# serialsearch.InitSerialNo(DB_conf("127.0.0.1:3306","smarthomeDB",'root','123456'))
+# print serialsearch.Session_SerailMap
 
-serialsearch.InitSerialNo(DB_conf("127.0.0.1:3306","smarthomeDB",'root','123456'))
-print serialsearch.Session_SerailMap
+class myTest():
+    dit = UserDict()
+    def __init__(self):
+        self.dit['name'] = 'yang'
+        self.dit['age'] = 5
+        
+    def PrintTest(self):
+        print self.dit
+        
+m = myTest()
+m.PrintTest()

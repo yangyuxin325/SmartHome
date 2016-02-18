@@ -98,7 +98,8 @@ class data_param(basic_data):
                 self.value = value
                 self.__changeFlag = 2
                 self.time = datetime.now()
-            elif not self.value or math.fabs(value - self.value) > self.__constraint['min_variation']:
+                self.error_flag = error_flag
+            elif self.value is None or math.fabs(value - self.value) > self.__constraint['min_variation']:
                 self.value = value
                 self.__changeFlag = 1
                 self.time = datetime.now()

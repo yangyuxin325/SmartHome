@@ -32,6 +32,7 @@ def doDataProcess(session):
         else:
             flag = dataitem.getChangeFlag()
             if flag:
+                dev.setDisConnect(True)
                 for dataitem in dev.values():
                     if dataitem:
                         change_flag = 3
